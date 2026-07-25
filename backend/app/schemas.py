@@ -200,7 +200,7 @@ class ReasonTag(CamelModel):
 class ResultInput(CamelModel):
     """結果記録の入力（§3.5 ResultForm）。"""
 
-    settled_price: float
+    settled_price: float = Field(gt=0, multiple_of=1, allow_inf_nan=False)
     delivery_timing: str = ""
     payment_terms: str = ""
     reason_codes: list[str] = Field(default_factory=list)  # 決着理由タグ（RC-xx・複数選択）

@@ -8,6 +8,7 @@
 
 import { api } from "@/lib/api";
 import type {
+  PastCase,
   ReasonTag,
   ResultInput,
   ResultRecord,
@@ -80,11 +81,82 @@ export function calcQuoteDiffPct(settled: number, quoted: number): number {
   return Math.round(((settled - quoted) / quoted) * 1000) / 10; // 小数第1位
 }
 
-/** 目標達成度（%）: 撤退で0%、目標で100%（目標より安ければ100%上限）。画面のライブ計算用。 */
+/** 目標達成度（%）: 撤退で0%、目標で100%。撤退超過は負数、目標より安い決着は100%超を許容する。 */
 export function calcAchievementPct(settled: number, target: number, walkaway: number): number {
   if (walkaway <= target) return settled <= target ? 100 : 0; // 帯が潰れている場合の保護
   const pct = ((walkaway - settled) / (walkaway - target)) * 100;
-  return Math.max(0, Math.min(100, Math.round(pct)));
+  return Math.round(pct);
+}
+
+export const SETTLED_PRICE_DEVIATION_RATE_THRESHOLD = 30;
+export const SETTLED_PRICE_DEVIATION_AMOUNT_THRESHOLD = 100;
+
+export type SettledPriceBaseSource = "quoted" | "plan" | "previous" | "none";
+
+export interface SettledPriceComparisonBase {
+  source: SettledPriceBaseSource;
+  label: string;
+  value: number | null;
+}
+
+export interface SettledPriceDeviation {
+  base: SettledPriceComparisonBase;
+  settledPrice: number;
+  difference: number;
+  deviationRate: number;
+  shouldWarn: boolean;
+}
+
+function validPositivePrice(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * 決着単価の乖離判定に使う比較基準を選ぶ。
+ * 現行データ構造では「先方提示単価」と「今回見積単価」は CaseDetail.quotedPrice に集約されているため、
+ * まず quotedPrice を「先方提示単価」として扱い、欠損時のみ計画単価・前回決着単価へフォールバックする。
+ */
+export function selectSettledPriceComparisonBase(params: {
+  quotedPrice: number;
+  planPrice?: number | null;
+  previousSettledPrice?: number | null;
+}): SettledPriceComparisonBase {
+  if (validPositivePrice(params.quotedPrice)) {
+    return { source: "quoted", label: "先方提示単価", value: params.quotedPrice };
+  }
+  if (validPositivePrice(params.planPrice)) {
+    return { source: "plan", label: "計画単価", value: params.planPrice };
+  }
+  if (validPositivePrice(params.previousSettledPrice)) {
+    return { source: "previous", label: "前回決着単価", value: params.previousSettledPrice };
+  }
+  return { source: "none", label: "", value: null };
+}
+
+export function findPreviousSettledPrice(pastCases: PastCase[]): number | null {
+  const direct = pastCases.find((item) => !item.relation && validPositivePrice(item.settledPrice));
+  const fallback = pastCases.find((item) => validPositivePrice(item.settledPrice));
+  return direct?.settledPrice ?? fallback?.settledPrice ?? null;
+}
+
+/** 決着単価が比較基準から大きく乖離しているかを判定する。 */
+export function calcSettledPriceDeviation(
+  settledPrice: number,
+  base: SettledPriceComparisonBase,
+): SettledPriceDeviation | null {
+  if (!validPositivePrice(settledPrice) || !validPositivePrice(base.value)) return null;
+
+  const difference = settledPrice - base.value;
+  const deviationRate = Math.round((difference / base.value) * 1000) / 10;
+  return {
+    base,
+    settledPrice,
+    difference,
+    deviationRate,
+    shouldWarn:
+      Math.abs(deviationRate) >= SETTLED_PRICE_DEVIATION_RATE_THRESHOLD &&
+      Math.abs(difference) >= SETTLED_PRICE_DEVIATION_AMOUNT_THRESHOLD,
+  };
 }
 
 /**

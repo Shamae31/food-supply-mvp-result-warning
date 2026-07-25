@@ -15,11 +15,30 @@ import { api } from "@/lib/api";
 import {
   calcAchievementPct,
   calcQuoteDiffPct,
+  calcSettledPriceDeviation,
+  findPreviousSettledPrice,
   getReasonTags,
   getResult,
   saveResult,
+  selectSettledPriceComparisonBase,
 } from "@/lib/workspaceApi";
 import type { ReasonTag, ResultRecord } from "@/lib/types";
+
+function validateSettledPriceInput(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return "決着単価を入力してください。";
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return "有効な数値を入力してください。";
+  if (parsed <= 0) return "0より大きい金額を入力してください。";
+  if (!/^\d+$/.test(trimmed)) {
+    return "決着単価は1以上の整数で入力してください。";
+  }
+  return null;
+}
+
+function formatSignedNumber(value: number): string {
+  return `${value > 0 ? "+" : ""}${value.toLocaleString("ja-JP", { maximumFractionDigits: 1 })}`;
+}
 
 export default function ResultPage() {
   const params = useParams<{ caseNo: string }>();
@@ -29,6 +48,8 @@ export default function ResultPage() {
   const [loading, setLoading] = useState(true);
   const [notReady, setNotReady] = useState(false);
   const [quoted, setQuoted] = useState(0);
+  const [planPrice, setPlanPrice] = useState<number | null>(null);
+  const [previousSettledPrice, setPreviousSettledPrice] = useState<number | null>(null);
   const [target, setTarget] = useState(0);
   const [walkaway, setWalkaway] = useState(0);
   const [tags, setTags] = useState<ReasonTag[]>([]);
@@ -45,15 +66,18 @@ export default function ResultPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [completed, setCompleted] = useState<ResultRecord | null>(null);
+  const [needsSaveConfirm, setNeedsSaveConfirm] = useState(false);
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [detail, lines, reasonTags, existing] = await Promise.all([
+      const [detail, lines, reasonTags, existing, plan, past] = await Promise.all([
         api.getCase(caseNo),
         api.getThreeLines(caseNo),
         getReasonTags(),
         getResult(caseNo),
+        api.getCompanyPlan(caseNo).catch(() => null),
+        api.getPastCases(caseNo).catch(() => null),
       ]);
       if (!alive) return;
       if (lines.lines.length === 0) {
@@ -62,6 +86,8 @@ export default function ResultPage() {
         return;
       }
       setQuoted(detail.quotedPrice);
+      setPlanPrice(plan?.planPrice ?? null);
+      setPreviousSettledPrice(past?.state === "ready" ? findPreviousSettledPrice(past.items) : null);
       setTarget(lines.lines.find((l) => l.type === "target")?.value ?? detail.quotedPrice);
       setWalkaway(lines.lines.find((l) => l.type === "walkaway")?.value ?? detail.quotedPrice);
       setTags(reasonTags);
@@ -82,7 +108,26 @@ export default function ResultPage() {
   }, [caseNo]);
 
   const settledNum = Number(settledPrice);
-  const hasSettled = settledPrice.trim() !== "" && !Number.isNaN(settledNum) && settledNum > 0;
+  const settledValidationError = useMemo(
+    () => validateSettledPriceInput(settledPrice),
+    [settledPrice],
+  );
+  const hasSettled = settledValidationError === null;
+  const comparisonBase = useMemo(
+    () =>
+      selectSettledPriceComparisonBase({
+        quotedPrice: quoted,
+        planPrice,
+        previousSettledPrice,
+      }),
+    [quoted, planPrice, previousSettledPrice],
+  );
+  const settledDeviation = useMemo(
+    () => (hasSettled ? calcSettledPriceDeviation(settledNum, comparisonBase) : null),
+    [comparisonBase, hasSettled, settledNum],
+  );
+  const exceedsWalkawayLine = hasSettled && walkaway > 0 && settledNum > walkaway;
+  const hasSaveWarning = Boolean(settledDeviation?.shouldWarn || exceedsWalkawayLine);
 
   // 自動計算（決着単価の入力に追従）
   const quoteDiff = useMemo(
@@ -94,15 +139,24 @@ export default function ResultPage() {
     [hasSettled, settledNum, target, walkaway],
   );
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (allowDeviation = false) => {
     const errs: typeof errors = {};
-    if (!hasSettled) errs.settled = "決着単価を入力してください。";
+    const settledError = validateSettledPriceInput(settledPrice);
+    if (settledError) errs.settled = settledError;
     if (reasonCodes.length === 0) errs.reason = "決着理由を1つ以上選択してください。";
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    const deviation = calcSettledPriceDeviation(settledNum, comparisonBase);
+    const exceedsWalkaway = walkaway > 0 && settledNum > walkaway;
+    if (!allowDeviation && (deviation?.shouldWarn || exceedsWalkaway)) {
+      setNeedsSaveConfirm(true);
+      return;
+    }
+
     setSaving(true);
     setSaveError(false);
+    setNeedsSaveConfirm(false);
     try {
       const record = await saveResult(caseNo, {
         settledPrice: settledNum,
@@ -118,7 +172,18 @@ export default function ResultPage() {
     } finally {
       setSaving(false);
     }
-  }, [caseNo, hasSettled, settledNum, deliveryTiming, paymentTerms, reasonCodes, staffMemo, handoverNote]);
+  }, [
+    caseNo,
+    comparisonBase,
+    settledNum,
+    settledPrice,
+    walkaway,
+    deliveryTiming,
+    paymentTerms,
+    reasonCodes,
+    staffMemo,
+    handoverNote,
+  ]);
 
   if (loading) {
     return (
@@ -179,7 +244,10 @@ export default function ResultPage() {
       <h1 className="text-2xl font-bold text-slate-900">結果記録</h1>
 
       {saveError && (
-        <ErrorBanner message="保存に失敗しました。入力内容はそのままです。もう一度お試しください。" onRetry={save} />
+        <ErrorBanner
+          message="保存に失敗しました。入力内容はそのままです。もう一度お試しください。"
+          onRetry={() => save(false)}
+        />
       )}
 
       {/* 決着結果 */}
@@ -194,6 +262,7 @@ export default function ResultPage() {
             value={settledPrice}
             onChange={(e) => {
               setSettledPrice(e.target.value);
+              setNeedsSaveConfirm(false);
               if (e.target.value.trim() !== "") setErrors((p) => ({ ...p, settled: undefined }));
             }}
             error={errors.settled}
@@ -216,6 +285,63 @@ export default function ResultPage() {
           <QuoteDiffField label="見積比（自動計算）" pct={quoteDiff ?? 0} />
           <AchievementField label="目標達成度（自動計算）" pct={achievement ?? 0} />
         </div>
+        {settledDeviation?.shouldWarn && (
+          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">
+              入力された決着単価は、{settledDeviation.base.label}
+              から大きく乖離しています。桁間違いや入力内容をご確認ください。
+            </p>
+            <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
+              <div>
+                <dt className="text-xs text-amber-700">比較基準</dt>
+                <dd className="num font-semibold">
+                  {settledDeviation.base.value?.toLocaleString("ja-JP")}円/kg
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-amber-700">決着単価</dt>
+                <dd className="num font-semibold">
+                  {settledDeviation.settledPrice.toLocaleString("ja-JP")}円/kg
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-amber-700">差額</dt>
+                <dd className="num font-semibold">
+                  {formatSignedNumber(settledDeviation.difference)}円/kg
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-amber-700">乖離率</dt>
+                <dd className="num font-semibold">
+                  {formatSignedNumber(settledDeviation.deviationRate)}%
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
+        {exceedsWalkawayLine && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+            <p className="font-semibold">
+              決着単価が撤退ラインを超えています。内容を確認してください。
+            </p>
+            <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div>
+                <dt className="text-xs text-red-700">撤退ライン</dt>
+                <dd className="num font-semibold">{walkaway.toLocaleString("ja-JP")}円/kg</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-red-700">決着単価</dt>
+                <dd className="num font-semibold">{settledNum.toLocaleString("ja-JP")}円/kg</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-red-700">撤退ラインとの差</dt>
+                <dd className="num font-semibold">
+                  {formatSignedNumber(settledNum - walkaway)}円/kg
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
         {!hasSettled && (
           <p className="mt-2 text-xs text-slate-500">
             決着単価を入力すると見積比・目標達成度が自動計算されます。
@@ -274,8 +400,27 @@ export default function ResultPage() {
         </div>
       </section>
 
+      {needsSaveConfirm && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-5">
+          <h2 className="text-base font-semibold text-amber-900">保存前の確認</h2>
+          <p className="mt-2 text-sm text-amber-900">
+            {hasSaveWarning
+              ? "確認が必要な決着単価が入力されています。この内容で保存しますか？"
+              : "入力内容を確認してください。"}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button variant="secondary" onClick={() => setNeedsSaveConfirm(false)}>
+              入力内容を修正する
+            </Button>
+            <Button onClick={() => save(true)} loading={saving}>
+              このまま保存する
+            </Button>
+          </div>
+        </section>
+      )}
+
       <div className="flex justify-end">
-        <Button onClick={save} loading={saving}>
+        <Button onClick={() => save(false)} loading={saving}>
           保存して案件を完了 ✓
         </Button>
       </div>

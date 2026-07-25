@@ -392,10 +392,7 @@ class MockApi implements Api {
         ? input.settledPrice <= target
           ? 100
           : 0
-        : Math.max(
-            0,
-            Math.min(100, Math.round(((walkaway - input.settledPrice) / (walkaway - target)) * 100)),
-          );
+        : Math.round(((walkaway - input.settledPrice) / (walkaway - target)) * 100);
     const record: ResultRecord = {
       ...input,
       caseNo,

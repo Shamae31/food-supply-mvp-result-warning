@@ -71,11 +71,11 @@ def _quote_diff_pct(settled: float, quoted: float) -> float:
 
 
 def _achievement_pct(settled: float, target: float, walkaway: float) -> float:
-    """目標達成度（%）: 撤退で0%、目標で100%（目標より安ければ100%上限）。"""
+    """目標達成度（%）: 撤退で0%、目標で100%。撤退超過は負数、目標より安い決着は100%超を許容する。"""
     if walkaway <= target:
         return 100.0 if settled <= target else 0.0
     pct = (walkaway - settled) / (walkaway - target) * 100
-    return float(max(0, min(100, round(pct))))
+    return float(round(pct))
 
 
 @router.get("/reasons", response_model=list[ReasonTag])

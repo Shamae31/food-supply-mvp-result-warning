@@ -203,6 +203,65 @@ def test_reason_code_validation(api) -> None:
     assert res.headers["content-type"] == "application/problem+json"
 
 
+def test_settled_price_must_be_positive(api) -> None:
+    """決着単価は 0 より大きい有限値のみ受理する。"""
+    base_payload = {
+        "deliveryTiming": "",
+        "paymentTerms": "",
+        "reasonCodes": ["RC-01"],
+        "staffMemo": "",
+    }
+    for invalid_price in (0, -100):
+        res = api.client.post(
+            "/api/cases/No.123456-a/result",
+            headers=api.headers(),
+            json={**base_payload, "settledPrice": invalid_price},
+        )
+        assert res.status_code == 422
+        assert res.headers["content-type"] == "application/problem+json"
+
+
+def test_settled_price_must_be_integer_yen(api) -> None:
+    """決着単価は円単位の整数のみ受理する。"""
+    res = api.client.post(
+        "/api/cases/No.123456-a/result",
+        headers=api.headers(),
+        json={
+            "settledPrice": 605.5,
+            "deliveryTiming": "",
+            "paymentTerms": "",
+            "reasonCodes": ["RC-01"],
+            "staffMemo": "",
+        },
+    )
+    assert res.status_code == 422
+    assert res.headers["content-type"] == "application/problem+json"
+
+
+def test_achievement_allows_boundary_negative_and_over_100(api) -> None:
+    """目標達成度は T=585/R=615 前提で、R同額=0%、R超過=負数、T未満=100%超を許容する。"""
+    cases = [
+        (614, 3.0),
+        (615, 0.0),
+        (616, -3.0),
+        (584, 103.0),
+    ]
+    for price, expected in cases:
+        res = api.client.post(
+            "/api/cases/No.123456-a/result",
+            headers=api.headers(),
+            json={
+                "settledPrice": price,
+                "deliveryTiming": "",
+                "paymentTerms": "",
+                "reasonCodes": ["RC-01"],
+                "staffMemo": "",
+            },
+        )
+        assert res.status_code == 201
+        assert res.json()["achievementPct"] == expected
+
+
 def test_result_idempotent(api) -> None:
     """同一 Idempotency-Key の再送は二重記録しない。"""
     headers = {**api.headers(), "Idempotency-Key": "res-1"}
