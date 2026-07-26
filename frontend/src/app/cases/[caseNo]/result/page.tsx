@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { TextField } from "@/components/ui/Form";
+import { SelectField, TextField } from "@/components/ui/Form";
 import { ReasonTagSelector } from "@/components/ui/ReasonTagSelector";
 import { AchievementField, QuoteDiffField } from "@/components/ui/AutoCalcField";
 import { ErrorBanner } from "@/components/ui/states";
@@ -38,6 +38,26 @@ function validateSettledPriceInput(value: string): string | null {
 
 function formatSignedNumber(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toLocaleString("ja-JP", { maximumFractionDigits: 1 })}`;
+}
+
+const PAYMENT_TERM_OPTIONS = [
+  { value: "", label: "選択してください" },
+  { value: "月末締め翌月末払い", label: "月末締め翌月末払い" },
+  { value: "月末締め翌々月10日払い", label: "月末締め翌々月10日払い" },
+  { value: "月末締め翌々月末払い", label: "月末締め翌々月末払い" },
+];
+
+function normalizeDeliveryMonth(value: string): string {
+  const match = value.match(/(\d{4})[/-](\d{1,2})/);
+  if (!match) return "";
+  return `${match[1]}-${match[2].padStart(2, "0")}`;
+}
+
+function paymentOptionsWithLegacyValue(value: string) {
+  if (!value || PAYMENT_TERM_OPTIONS.some((option) => option.value === value)) {
+    return PAYMENT_TERM_OPTIONS;
+  }
+  return [...PAYMENT_TERM_OPTIONS, { value, label: `既存値: ${value}` }];
 }
 
 export default function ResultPage() {
@@ -94,7 +114,7 @@ export default function ResultPage() {
       // 既存の結果があれば入力欄に復元（再編集可能）
       if (existing) {
         setSettledPrice(String(existing.settledPrice));
-        setDeliveryTiming(existing.deliveryTiming);
+        setDeliveryTiming(normalizeDeliveryMonth(existing.deliveryTiming));
         setPaymentTerms(existing.paymentTerms);
         setReasonCodes(existing.reasonCodes);
         setStaffMemo(existing.staffMemo);
@@ -128,6 +148,7 @@ export default function ResultPage() {
   );
   const exceedsWalkawayLine = hasSettled && walkaway > 0 && settledNum > walkaway;
   const hasSaveWarning = Boolean(settledDeviation?.shouldWarn || exceedsWalkawayLine);
+  const paymentOptions = useMemo(() => paymentOptionsWithLegacyValue(paymentTerms), [paymentTerms]);
 
   // 自動計算（決着単価の入力に追従）
   const quoteDiff = useMemo(
@@ -269,16 +290,17 @@ export default function ResultPage() {
             placeholder="例: 620"
           />
           <TextField
-            label="納入時期"
+            label="納入年月"
+            type="month"
             value={deliveryTiming}
             onChange={(e) => setDeliveryTiming(e.target.value)}
-            placeholder="例: 2026/08 納入開始"
+            hint="年月を統一形式で保存します。例: 2026年8月"
           />
-          <TextField
+          <SelectField
             label="支払条件"
             value={paymentTerms}
             onChange={(e) => setPaymentTerms(e.target.value)}
-            placeholder="例: 月末締め翌月末払い"
+            options={paymentOptions}
           />
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
