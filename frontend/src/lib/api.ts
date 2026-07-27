@@ -272,6 +272,10 @@ class MockApi implements Api {
 
   async getThreeLines(caseNo: string): Promise<ThreeLineResult> {
     await delay(400);
+    const current = store.getCases().find((c) => c.caseNo === caseNo);
+    if (current?.status === "before") {
+      store.setCaseStatus(caseNo, "negotiating");
+    }
     const plan = store.getPlan(caseNo);
     const rate = await this.getRateInfo(caseNo);
     const past = MOCK_PAST_CASES[caseNo] ?? [];

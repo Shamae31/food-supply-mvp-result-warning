@@ -74,7 +74,7 @@ function CasesInner() {
   }
 
   const columns: Column<CaseDetail>[] = [
-    { key: "caseNo", header: "案件番号", numeric: true, width: "120px", render: (r) => r.caseNo },
+    { key: "caseNo", header: "案件番号", width: "120px", render: (r) => r.caseNo },
     { key: "company", header: "企業", render: (r) => r.company },
     { key: "product", header: "商材", render: (r) => r.product },
     {
@@ -106,7 +106,7 @@ function CasesInner() {
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSearch()}
             placeholder="案件番号・企業・商材・担当"
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
+            className="mt-1 h-11 w-full rounded-md border border-slate-300 px-3 text-sm leading-5
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           />
         </div>
@@ -114,19 +114,27 @@ function CasesInner() {
           <label htmlFor="st" className="block text-sm font-medium text-slate-700">
             ステータス
           </label>
-          <select
-            id="st"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as CaseStatus | "all")}
-            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative mt-1">
+            <select
+              id="st"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as CaseStatus | "all")}
+              className="h-11 w-full appearance-none rounded-md border border-slate-300 bg-white px-3 pr-9 text-sm leading-5
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+            >
+              ▼
+            </span>
+          </div>
         </div>
         <Button variant="secondary" onClick={onSearch}>
           検索実行

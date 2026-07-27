@@ -91,7 +91,13 @@ export default function StrategyPage() {
 
       <AiGenerationPanel onGenerate={onGenerate} onSave={onSave} initial={initialDraft} />
 
-      <div className="flex justify-end">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button
+          variant="secondary"
+          onClick={() => router.push(`/cases/${encodeURIComponent(caseNo)}/lines`)}
+        >
+          ← 3ライン算出へ戻る
+        </Button>
         <Button onClick={() => router.push(`/cases/${encodeURIComponent(caseNo)}/result`)}>
           次へ：結果記録 →
         </Button>

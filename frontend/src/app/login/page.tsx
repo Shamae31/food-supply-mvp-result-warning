@@ -7,6 +7,7 @@
 // - Google ボタンは NEXT_PUBLIC_GOOGLE_CLIENT_ID が必要（GIS の「承認済み JavaScript 生成元」依存）。
 //   未設定時は無効表示＋案内文にフォールバックする。
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
@@ -111,11 +112,16 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 text-center">
-          <div className="text-3xl" aria-hidden="true">
-            🥩
-          </div>
-          <h1 className="mt-2 text-xl font-bold text-slate-900">ふりぃらじかるず</h1>
-          <p className="text-sm text-slate-500">購買交渉支援</p>
+          <Image
+            src="/negotius-logo.png"
+            alt=""
+            aria-hidden="true"
+            width={80}
+            height={80}
+            className="mx-auto h-20 w-20 rounded-2xl object-contain"
+          />
+          <h1 className="mt-3 text-xl font-bold text-slate-900">Negotius</h1>
+          <p className="text-sm text-slate-500">購買交渉支援MVP</p>
         </div>
 
         {/* Google でログイン（認証シーム: google。GIS 公式ボタン） */}

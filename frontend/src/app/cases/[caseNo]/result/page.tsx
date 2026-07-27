@@ -377,6 +377,9 @@ export default function ResultPage() {
           決着理由 <span className="text-red-600">*</span>
           <span className="ml-2 text-sm font-normal text-slate-500">（複数選択可）</span>
         </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          決着理由タグだけでは伝わらない背景は、所感・申し送りに具体的に残してください。
+        </p>
         <div className="mt-4">
           <ReasonTagSelector
             tags={tags}
@@ -395,21 +398,23 @@ export default function ResultPage() {
         {/* 所感（今回案件の記録） */}
         <div>
           <h2 className="text-lg font-semibold text-slate-900">所感</h2>
-          <p className="mt-1 text-sm text-slate-500">今回案件の記録（交渉の振り返り）。</p>
+          <p className="mt-1 text-sm text-slate-500">
+            今回の交渉で、何が決着価格に影響したかを残します。相場・過去実績・数量条件・先方反応など、圧縮に効いた要因を書いてください。
+          </p>
           <textarea
             value={staffMemo}
             onChange={(e) => setStaffMemo(e.target.value)}
             rows={3}
             className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-            placeholder="例: 数量コミットで着地付近に収めた（任意）"
+            placeholder="例: 相場600円/kg、前回598円/kgを根拠に、提示640円/kgから626円/kgまで圧縮。数量増の余地を示したことが効いた。"
           />
         </div>
         {/* 次回への申し送り（次回案件への判断材料） */}
         <div>
           <h2 className="text-lg font-semibold text-slate-900">次回への申し送り</h2>
           <p className="mt-1 text-sm text-slate-500">
-            次回案件への判断材料。次に同一商材×取引先で案件を作成したとき、②情報収集「過去経緯」に表示されます。
+            次回の同一取引先・同一商材の交渉で使える情報を残します。相手の反応、次に使えそうな交渉カード、注意点を書いてください。
           </p>
           <textarea
             value={handoverNote}
@@ -417,8 +422,11 @@ export default function ResultPage() {
             rows={3}
             className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-            placeholder="例: 次回は数量カードを早めに切る（任意）"
+            placeholder="例: 先方は数量コミットに反応あり。次回は対象店舗拡大・期間固定を条件に、600円台前半を狙える可能性あり。"
           />
+          <p className="mt-2 text-xs text-slate-500">
+            保存後、次に同一商材×取引先で案件を作成したとき、②情報収集「過去経緯」に表示されます。
+          </p>
         </div>
       </section>
 
@@ -441,7 +449,13 @@ export default function ResultPage() {
         </section>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button
+          variant="secondary"
+          onClick={() => router.push(`/cases/${encodeURIComponent(caseNo)}/strategy`)}
+        >
+          ← 作戦シートへ戻る
+        </Button>
         <Button onClick={() => save(false)} loading={saving}>
           保存して案件を完了 ✓
         </Button>

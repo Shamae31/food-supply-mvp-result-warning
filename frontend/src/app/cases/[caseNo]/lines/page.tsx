@@ -123,7 +123,13 @@ export default function LinesPage() {
         </p>
       </section>
 
-      <div className="flex justify-end">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button
+          variant="secondary"
+          onClick={() => router.push(`/cases/${encodeURIComponent(caseNo)}/collect`)}
+        >
+          ← 情報収集へ戻る
+        </Button>
         <Button onClick={() => router.push(`/cases/${encodeURIComponent(caseNo)}/strategy`)}>
           次へ：作戦シート生成 →
         </Button>
