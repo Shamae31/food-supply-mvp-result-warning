@@ -90,7 +90,10 @@ function mergeSeedData(s: StoreShape): { store: StoreShape; changed: boolean } {
 
   const results = { ...(s.results ?? {}) };
   for (const [caseNo, result] of Object.entries(MOCK_RESULTS)) {
-    if (!results[caseNo]) {
+    const current = results[caseNo];
+    // デモ用の完了済み seed 案件は、古い localStorage に未完成データが残っていても
+    // 過去経緯として安定して見せられるように初期データで補修する。
+    if (!current || !isResultComplete(current)) {
       results[caseNo] = result;
       changed = true;
     }
