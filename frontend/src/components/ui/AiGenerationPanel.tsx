@@ -109,14 +109,19 @@ export function AiGenerationPanel({ onGenerate, onSave, initial }: Props) {
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">交渉ポイント・シナリオ（AI生成）</h3>
-        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-          🤖 AI下書き・要確認
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">交渉の進め方</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            過去経緯と3ラインをもとにした下書きです。担当者が内容を確認して使います。
+          </p>
+        </div>
+        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+          AI下書き・要確認
         </span>
       </div>
 
-      {state === "idle" && <Button onClick={run}>AIで交渉ポイントを生成する</Button>}
+      {state === "idle" && <Button onClick={run}>交渉の進め方を生成する</Button>}
 
       {generating && (
         <div role="status" aria-live="polite" className="space-y-2">
@@ -160,7 +165,9 @@ export function AiGenerationPanel({ onGenerate, onSave, initial }: Props) {
 
       {state === "done" && draft && (
         <div className="space-y-4">
-          <ul className="space-y-3">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-800">1. まず確認するポイント</h4>
+            <ul className="mt-2 space-y-3">
             {draft.points.map((p, i) => (
               <li key={i} className="rounded-md border border-slate-100 bg-slate-50 p-3">
                 <p className="text-sm text-slate-700">・{p.text}</p>
@@ -169,14 +176,15 @@ export function AiGenerationPanel({ onGenerate, onSave, initial }: Props) {
                 </div>
               </li>
             ))}
-          </ul>
+            </ul>
+          </div>
 
           <div>
             <label
               htmlFor="scenario"
               className="block text-sm font-medium text-slate-700"
             >
-              交渉シナリオ（編集可）
+              2. 話し方のたたき台（編集可）
             </label>
             <textarea
               id="scenario"

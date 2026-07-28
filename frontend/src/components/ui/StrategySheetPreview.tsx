@@ -1,5 +1,5 @@
 // StrategySheetPreview（デザインガイド §3.4）
-// 定型フォーマットの作戦シート。案件概要・3ライン・年間影響額・過去経緯サマリを自動流し込みで表示。
+// 交渉前に確認する方針サマリ。案件概要・3ライン・年間影響額・過去経緯を自動流し込みで表示。
 // PDF 出力は将来機能のためボタンは出さない（機能要件資料 §4）。
 import type { LineType, StrategySheet } from "@/lib/types";
 import { toManYen } from "@/lib/calc";
@@ -13,10 +13,7 @@ const LINE_META: Record<LineType, { label: string; cls: string }> = {
 export function StrategySheetPreview({ sheet }: { sheet: StrategySheet }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5">
-      <h2 className="text-lg font-semibold text-slate-900">
-        作戦シート プレビュー
-        <span className="ml-2 text-sm font-normal text-slate-500">（定型フォーマット）</span>
-      </h2>
+      <h2 className="text-lg font-semibold text-slate-900">交渉方針</h2>
 
       {/* 案件概要 */}
       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
@@ -65,8 +62,8 @@ export function StrategySheetPreview({ sheet }: { sheet: StrategySheet }) {
         </span>
       </div>
 
-      {/* 過去経緯サマリ */}
-      <h3 className="mt-6 text-sm font-semibold text-slate-700">過去経緯サマリ</h3>
+      {/* 過去経緯 */}
+      <h3 className="mt-6 text-sm font-semibold text-slate-700">過去経緯</h3>
       {sheet.pastSummary.length === 0 ? (
         <p className="mt-2 text-sm text-slate-500">参照できる過去経緯はありません。</p>
       ) : (
