@@ -89,11 +89,9 @@ function CasesInner() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-6">
-      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2">
-        <p className="text-sm font-medium text-slate-800">
-          Negotiusは、仕入交渉の判断材料を整理し、結果を次回に活かせるかを検証するMVPです。
-        </p>
-      </div>
+      <p className="mb-5 text-sm font-medium leading-6 text-slate-600">
+        仕入交渉の判断材料を整理し、結果を次回に活かせるかを検証するMVPです。
+      </p>
 
       <div className="mb-3 flex items-center justify-between">
         <div>
