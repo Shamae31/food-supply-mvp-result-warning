@@ -66,6 +66,70 @@ export const MOCK_CASES: CaseSummary[] = [
     updatedAt: "02/12",
     assignee: "田中",
   },
+  {
+    caseNo: "No.123456-a",
+    company: "丸紅畜産",
+    product: "鶏もも肉（ブラジル産・冷凍）",
+    status: "negotiating",
+    updatedAt: "07/05",
+    assignee: "佐藤",
+  },
+  {
+    caseNo: "No.123455-a",
+    company: "丸紅畜産",
+    product: "鶏もも肉（ブラジル産・冷凍）",
+    status: "done",
+    updatedAt: "03/15",
+    assignee: "佐藤",
+  },
+  {
+    caseNo: "No.123454-a",
+    company: "丸紅畜産",
+    product: "鶏もも肉（ブラジル産・冷凍）",
+    status: "done",
+    updatedAt: "12/10",
+    assignee: "佐藤",
+  },
+  {
+    caseNo: "No.123453-a",
+    company: "丸紅畜産",
+    product: "鶏もも肉（ブラジル産・冷凍）",
+    status: "done",
+    updatedAt: "09/18",
+    assignee: "田中",
+  },
+  {
+    caseNo: "No.123452-a",
+    company: "丸紅畜産",
+    product: "鶏もも肉（ブラジル産・冷凍）",
+    status: "done",
+    updatedAt: "06/20",
+    assignee: "田中",
+  },
+  {
+    caseNo: "No.123457-a",
+    company: "東日本ミート",
+    product: "鶏むね肉（国産・チルド）",
+    status: "negotiating",
+    updatedAt: "07/05",
+    assignee: "佐藤",
+  },
+  {
+    caseNo: "No.123458-a",
+    company: "グローバルフーズ商事",
+    product: "牛バラ肉（豪州産・チルド）",
+    status: "done",
+    updatedAt: "12/20",
+    assignee: "鈴木",
+  },
+  {
+    caseNo: "No.123459-a",
+    company: "グローバルフーズ商事",
+    product: "牛バラ肉（豪州産・チルド）",
+    status: "negotiating",
+    updatedAt: "07/10",
+    assignee: "鈴木",
+  },
 ];
 
 /** 案件詳細（ワークスペースヘッダー用）。一覧に無い項目を補完する。 */
@@ -76,6 +140,14 @@ export const MOCK_CASE_DETAILS: Record<string, Omit<CaseDetail, keyof CaseSummar
   "No.499960": { quotedPrice: 430, targetPeriod: "2025Q4", currentStep: "result" },
   "No.499921": { quotedPrice: 340, targetPeriod: "2026Q2", currentStep: "result" },
   "No.499801": { quotedPrice: 620, targetPeriod: "2026Q1", currentStep: "result" },
+  "No.123456-a": { quotedPrice: 620, targetPeriod: "2026Q3", currentStep: "collect" },
+  "No.123455-a": { quotedPrice: 620, targetPeriod: "2026Q2", currentStep: "result" },
+  "No.123454-a": { quotedPrice: 618, targetPeriod: "2026Q1", currentStep: "result" },
+  "No.123453-a": { quotedPrice: 625, targetPeriod: "2025Q4", currentStep: "result" },
+  "No.123452-a": { quotedPrice: 615, targetPeriod: "2025Q3", currentStep: "result" },
+  "No.123457-a": { quotedPrice: 690, targetPeriod: "2026Q3", currentStep: "collect" },
+  "No.123458-a": { quotedPrice: 1240, targetPeriod: "2026Q1", currentStep: "result" },
+  "No.123459-a": { quotedPrice: 1260, targetPeriod: "2026Q3", currentStep: "collect" },
 };
 
 /** 相場情報（案件番号 → 相場）。デザインガイド §3.2 のサンプル ¥620/kg。
@@ -119,6 +191,45 @@ export const MOCK_RATES: Record<string, RateInfo> = {
     unit: "円/kg",
     normalizedCount: 10,
     note: "日付・%表記ゆれを自動補正済み",
+  },
+  "No.123456-a": {
+    registered: true,
+    latestPrice: 609,
+    currentPrice: 609,
+    yoyRate: 0.03,
+    yearMonth: "2026-07",
+    source: "初期データ",
+    inputMethod: "CSV",
+    updatedAt: "2026-07-05T14:00:00Z",
+    unit: "円/kg",
+    normalizedCount: 12,
+    note: "元MVPのseedデータから反映",
+  },
+  "No.123457-a": {
+    registered: true,
+    latestPrice: 670,
+    currentPrice: 670,
+    yoyRate: 0.02,
+    yearMonth: "2026-07",
+    source: "初期データ",
+    inputMethod: "CSV",
+    updatedAt: "2026-07-05T14:00:00Z",
+    unit: "円/kg",
+    normalizedCount: 12,
+    note: "元MVPのseedデータから反映",
+  },
+  "No.123459-a": {
+    registered: true,
+    latestPrice: 1215,
+    currentPrice: 1215,
+    yoyRate: 0.04,
+    yearMonth: "2026-07",
+    source: "初期データ",
+    inputMethod: "CSV",
+    updatedAt: "2026-07-10T10:00:00Z",
+    unit: "円/kg",
+    normalizedCount: 12,
+    note: "元MVPのseedデータから反映",
   },
 };
 
@@ -167,6 +278,55 @@ export const MOCK_PAST_CASES: Record<string, PastCase[]> = {
   ],
   // No.499998（伊藤忠食品・豚バラ）は過去取引なし → 空状態のデモ
   "No.499998": [],
+  "No.123456-a": [
+    {
+      caseNo: "No.123455-a",
+      company: "丸紅畜産",
+      product: "鶏もも肉（ブラジル産・冷凍）",
+      period: "2026Q2",
+      settledPrice: 609,
+      citations: [
+        {
+          caseNo: "No.123455-a",
+          company: "丸紅畜産",
+          product: "鶏もも肉（ブラジル産・冷凍）",
+          snippet: "数量提示が遅れ押し込まれ気味。次回は前倒しで数量提示を。",
+        },
+      ],
+    },
+    {
+      caseNo: "No.123452-a",
+      company: "丸紅畜産",
+      product: "鶏もも肉（ブラジル産・冷凍）",
+      period: "2025Q3",
+      settledPrice: 598,
+      citations: [
+        {
+          caseNo: "No.123452-a",
+          company: "丸紅畜産",
+          product: "鶏もも肉（ブラジル産・冷凍）",
+          snippet: "数量増（+2,000kg/月）で目標超え決着。数量カードは丸紅に有効。",
+        },
+      ],
+    },
+  ],
+  "No.123459-a": [
+    {
+      caseNo: "No.123458-a",
+      company: "グローバルフーズ商事",
+      product: "牛バラ肉（豪州産・チルド）",
+      period: "2026Q1",
+      settledPrice: 1215,
+      citations: [
+        {
+          caseNo: "No.123458-a",
+          company: "グローバルフーズ商事",
+          product: "牛バラ肉（豪州産・チルド）",
+          snippet: "輸入牛は相見積カードで¥1215に収めた。次回は別ソースの相見積を早めに用意。",
+        },
+      ],
+    },
+  ],
 };
 
 /** 自社計画の初期値（案件番号 → 計画）。②で保存すると③の算出に反映される。 */
@@ -182,6 +342,24 @@ export const MOCK_PLANS: Record<string, CompanyPlan> = {
     planPrice: 425,
     monthlyVolume: 6000,
     ceilingPrice: 440,
+  },
+  "No.123456-a": {
+    targetCostRate: 30,
+    planPrice: 595,
+    monthlyVolume: 18000,
+    ceilingPrice: 615,
+  },
+  "No.123457-a": {
+    targetCostRate: 31,
+    planPrice: 680,
+    monthlyVolume: 6000,
+    ceilingPrice: 700,
+  },
+  "No.123459-a": {
+    targetCostRate: 34,
+    planPrice: 1200,
+    monthlyVolume: 4500,
+    ceilingPrice: 1250,
   },
 };
 

@@ -69,7 +69,7 @@ export function CreateCaseModal({ open, onClose, onCreated }: Props) {
     const price = Number(quotedPrice);
     if (quotedPrice.trim() === "" || Number.isNaN(price) || price <= 0)
       e.quotedPrice = "提出見積（円/kg）を正の数で入力してください。";
-    if (targetPeriod.trim() === "") e.targetPeriod = "交渉時期を入力してください。";
+    if (targetPeriod.trim() === "") e.targetPeriod = "交渉時期を年月で選択してください。";
     return e;
   }
 
@@ -174,12 +174,13 @@ export function CreateCaseModal({ open, onClose, onCreated }: Props) {
           placeholder="例: 620"
         />
         <TextField
-          label="交渉時期"
+          label="交渉時期（対象年月）"
           required
+          type="month"
           value={targetPeriod}
           onChange={(e) => setTargetPeriod(e.target.value)}
           error={errors.targetPeriod}
-          placeholder="例: 2026Q3"
+          hint="交渉対象となる年月を選択してください。例: 2026-08"
         />
 
         <div className="flex justify-end gap-2 pt-2">

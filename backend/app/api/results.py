@@ -20,6 +20,7 @@ DB アクセスは Repository 経由（§2.8 ルール1）。共有マスタ（r
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header
@@ -78,6 +79,20 @@ def _achievement_pct(settled: float, target: float, walkaway: float) -> float:
     return float(round(pct))
 
 
+def _delivery_year_month(value: str | None) -> str | None:
+    """納入時期から分析用の YYYY-MM を取り出す。
+
+    画面は YYYY-MM 入力に寄せているが、旧データ/API互換で YYYY/MM や
+    「2026/07〜09 月2回」のような文字列も受ける。
+    """
+    if not value:
+        return None
+    match = re.search(r"(20\d{2})[-/年](0?[1-9]|1[0-2])", value)
+    if match is None:
+        return None
+    return f"{match.group(1)}-{int(match.group(2)):02d}"
+
+
 @router.get("/reasons", response_model=list[ReasonTag])
 def list_reasons(session: Session = Depends(get_session)) -> list[ReasonTag]:
     """変動理由マスタ（RC-01〜10）を返す。共有参照のためテナント非依存で読む。"""
@@ -103,7 +118,8 @@ def _build_record(
     saved = result.updated_at or result.created_at
     return ResultRecord(
         settled_price=settled,
-        delivery_timing=result.delivery_term or "",
+        delivery_timing=result.delivery_year_month or result.delivery_term or "",
+        delivery_year_month=result.delivery_year_month,
         payment_terms=result.payment_site or "",
         reason_codes=list(result.accepted_reasons or []),
         staff_memo=result.staff_memo or "",  # 所感（今回の記録）
@@ -157,7 +173,8 @@ def save_result(
         result = repo.add(m.NegotiationResult(case_no=case_no))
     result.result_date = date.today()
     result.final_price = body.settled_price
-    result.delivery_term = body.delivery_timing
+    result.delivery_year_month = _delivery_year_month(body.delivery_timing)
+    result.delivery_term = body.delivery_year_month or body.delivery_timing
     result.payment_site = body.payment_terms
     result.vs_quote = body.settled_price - quoted  # 見積比 改善 ¥（負=見積より安い）
     result.achievement = achievement

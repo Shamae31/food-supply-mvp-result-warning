@@ -90,7 +90,12 @@ function CasesInner() {
   return (
     <main className="mx-auto max-w-7xl px-6 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">案件一覧</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">案件一覧</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Negotiusは、仕入交渉の判断材料を整理し、結果を次回に活かせるかを検証するMVPです。
+          </p>
+        </div>
         <Button onClick={() => setModalOpen(true)}>＋ 新規案件作成</Button>
       </div>
 

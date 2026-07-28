@@ -92,6 +92,7 @@ function toDetail(caseNo: string): CaseDetail {
     ...summary,
     quotedPrice: extra.quotedPrice,
     targetPeriod: extra.targetPeriod,
+    targetYearMonth: /^\d{4}-\d{2}$/.test(extra.targetPeriod) ? extra.targetPeriod : null,
     currentStep: "collect",
   };
 }
@@ -126,6 +127,7 @@ class MockApi implements Api {
         ...c,
         quotedPrice: extra.quotedPrice,
         targetPeriod: extra.targetPeriod,
+        targetYearMonth: /^\d{4}-\d{2}$/.test(extra.targetPeriod) ? extra.targetPeriod : null,
         currentStep: "collect" as const,
       };
     });
@@ -165,7 +167,13 @@ class MockApi implements Api {
       assignee: MOCK_AUTH_USER.displayName.split(" ")[0],
     };
     store.addCase(summary, input.quotedPrice, input.targetPeriod);
-    return { ...summary, quotedPrice: input.quotedPrice, targetPeriod: input.targetPeriod, currentStep: "collect" };
+    return {
+      ...summary,
+      quotedPrice: input.quotedPrice,
+      targetPeriod: input.targetPeriod,
+      targetYearMonth: /^\d{4}-\d{2}$/.test(input.targetPeriod) ? input.targetPeriod : null,
+      currentStep: "collect",
+    };
   }
 
   async getCase(caseNo: string): Promise<CaseDetail> {
@@ -177,10 +185,15 @@ class MockApi implements Api {
     await delay(250);
     const manualRates = store.loadStore().manualRates?.[caseNo];
     if (manualRates && Object.keys(manualRates).length > 0) {
-      const latestManual = Object.values(manualRates).sort((a, b) =>
-        a.yearMonth.localeCompare(b.yearMonth),
-      ).at(-1);
+      const validManualRates = Object.values(manualRates).filter(
+        (rate): rate is RateManualInput =>
+          typeof rate?.yearMonth === "string" && typeof rate.priceYenKg === "number",
+      );
       const base = MOCK_RATES[caseNo];
+      if (validManualRates.length === 0) return base ?? this.getRateInfoFallback();
+      const latestManual = validManualRates
+        .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
+        .at(-1);
       return {
         registered: true,
         latestPrice: latestManual?.priceYenKg ?? base?.latestPrice ?? null,
@@ -192,22 +205,26 @@ class MockApi implements Api {
         inputMethod: "手入力",
         updatedAt: new Date().toISOString(),
         unit: "円/kg",
-        normalizedCount: (base?.normalizedCount ?? 0) + Object.keys(manualRates).length,
+        normalizedCount: base?.normalizedCount ?? 0,
         note: "手入力の相場情報を保存しました。",
       };
     }
     return (
-      MOCK_RATES[caseNo] ?? {
-        // 相場未登録（issue #3）: 価格0ではなく registered=false で区別する。
-        registered: false,
-        latestPrice: null,
-        currentPrice: 0,
-        yoyRate: null,
-        unit: "円/kg",
-        normalizedCount: 0,
-        note: "相場データ未登録です。手入力または CSV 取込で登録してください。",
-      }
+      MOCK_RATES[caseNo] ?? this.getRateInfoFallback()
     );
+  }
+
+  private getRateInfoFallback(): RateInfo {
+    return {
+      // 相場未登録（issue #3）: 価格0ではなく registered=false で区別する。
+      registered: false,
+      latestPrice: null,
+      currentPrice: 0,
+      yoyRate: null,
+      unit: "円/kg",
+      normalizedCount: 0,
+      note: "相場データ未登録です。手入力または CSV 取込で登録してください。",
+    };
   }
 
   async saveManualRate(caseNo: string, input: RateManualInput): Promise<RateInfo> {

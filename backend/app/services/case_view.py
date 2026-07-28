@@ -78,6 +78,7 @@ def build_case_detail(
         updated_at=case.updated_at.strftime("%m/%d") if case.updated_at else "",
         assignee=case.created_by or "",
         quoted_price=float(case.proposed_price) if case.proposed_price is not None else 0.0,
-        target_period=case.period or "",
+        target_period=case.target_year_month or case.period or "",
+        target_year_month=case.target_year_month,
         current_step="collect",
     )

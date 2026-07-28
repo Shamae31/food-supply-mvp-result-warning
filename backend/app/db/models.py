@@ -245,6 +245,7 @@ class NegotiationCase(Base, TimestampMixin):
     supplier_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     spec_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     period: Mapped[str | None] = mapped_column(Text)
+    target_year_month: Mapped[str | None] = mapped_column(String(7))  # YYYY-MM。交渉時期の構造化年月
     case_type: Mapped[str | None] = mapped_column(Text)  # 見積/値上げ要請/契約更新（seams.CaseType）
     status: Mapped[str | None] = mapped_column(Text)  # 交渉中/完了
     current_price: Mapped[float | None] = mapped_column(Numeric(10, 2))
@@ -314,6 +315,7 @@ class NegotiationResult(Base, TimestampMixin):
     result_date: Mapped[Date | None] = mapped_column(Date)
     final_price: Mapped[float | None] = mapped_column(Numeric(10, 2))  # 決着単価（FR-11）
     delivery_term: Mapped[str | None] = mapped_column(Text)
+    delivery_year_month: Mapped[str | None] = mapped_column(String(7))  # YYYY-MM。分析用の構造化納入年月
     payment_site: Mapped[str | None] = mapped_column(Text)
     vs_quote: Mapped[float | None] = mapped_column(Numeric(10, 2))
     vs_landing: Mapped[float | None] = mapped_column(Numeric(10, 2))
