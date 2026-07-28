@@ -89,14 +89,17 @@ function CasesInner() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">案件一覧</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Negotiusは、仕入交渉の判断材料を整理し、結果を次回に活かせるかを検証するMVPです。
-          </p>
         </div>
         <Button onClick={() => setModalOpen(true)}>＋ 新規案件作成</Button>
+      </div>
+
+      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+        <p className="text-sm font-medium text-slate-800">
+          Negotiusは、仕入交渉の判断材料を整理し、結果を次回に活かせるかを検証するMVPです。
+        </p>
       </div>
 
       {/* フィルタバー */}
