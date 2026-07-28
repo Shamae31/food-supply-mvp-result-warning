@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { isPlanReady } from "@/lib/calc";
 import * as store from "@/lib/store";
 import type { CaseDetail, WorkspaceStep } from "@/lib/types";
+import { CreateCaseModal } from "../CreateCaseModal";
 
 function stepFromPath(pathname: string): WorkspaceStep {
   if (pathname.endsWith("/lines")) return "lines";
@@ -45,6 +46,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [error, setError] = useState(false);
   const [reached, setReached] = useState<WorkspaceStep[]>(["collect"]);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -81,7 +83,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
       {/* 共通ヘッダー */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/cases"
               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100
@@ -102,6 +104,16 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
             ) : (
               <Spinner className="h-4 w-4 text-slate-400" />
             )}
+            {detail && (
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="ml-auto inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                基本情報を修正
+              </button>
+            )}
           </div>
 
           <div className="mt-3">
@@ -111,6 +123,22 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-6">{children}</main>
+      {detail && (
+        <CreateCaseModal
+          open={editOpen}
+          mode="edit"
+          initialCase={detail}
+          onClose={() => setEditOpen(false)}
+          onCreated={() => undefined}
+          onUpdated={(next) => {
+            setDetail(next);
+            setEditOpen(false);
+            window.dispatchEvent(
+              new CustomEvent("negotius:case-updated", { detail: { caseNo: next.caseNo } }),
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -159,6 +159,7 @@ class TenantScopedRepository:
             .where(
                 m.NegotiationResult.tenant_id == self.tenant_id,
                 m.NegotiationCase.case_no != exclude_case_no,
+                m.NegotiationCase.status == "完了",
                 (m.NegotiationCase.spec_id == spec_id)
                 | (m.NegotiationCase.supplier_id == supplier_id),
             )

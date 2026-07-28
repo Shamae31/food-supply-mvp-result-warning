@@ -9,7 +9,9 @@ import {
   MOCK_CASE_DETAILS,
   MOCK_PLANS,
   MOCK_RATES,
+  MOCK_RESULTS,
 } from "@/lib/mock/data";
+import { isResultComplete } from "@/lib/resultCompletion";
 import type {
   CaseStatus,
   CaseSummary,
@@ -48,7 +50,7 @@ function seed(): StoreShape {
     manualRates: {},
     lines: {},
     strategies: {},
-    results: {},
+    results: { ...MOCK_RESULTS },
     lastStep: {},
   };
 }
@@ -86,16 +88,41 @@ function mergeSeedData(s: StoreShape): { store: StoreShape; changed: boolean } {
     }
   }
 
+  const results = { ...(s.results ?? {}) };
+  for (const [caseNo, result] of Object.entries(MOCK_RESULTS)) {
+    if (!results[caseNo]) {
+      results[caseNo] = result;
+      changed = true;
+    }
+  }
+
+  const resultCaseNos = new Set(Object.keys(results));
+  const casesWithSyncedStatus = cases.map((item) => {
+    const result = results[item.caseNo];
+    if (!result) return item;
+    const nextStatus: CaseStatus = isResultComplete(result) ? "done" : "negotiating";
+    if (item.status === nextStatus) return item;
+    changed = true;
+    return { ...item, status: nextStatus };
+  });
+
+  for (const item of casesWithSyncedStatus) {
+    if (item.status === "done" && !resultCaseNos.has(item.caseNo)) {
+      changed = true;
+      item.status = "negotiating";
+    }
+  }
+
   return {
     store: {
       ...s,
-      cases,
+      cases: casesWithSyncedStatus,
       caseExtra,
       plans,
       manualRates: s.manualRates ?? {},
       lines: s.lines ?? {},
       strategies: s.strategies ?? {},
-      results: s.results ?? {},
+      results,
       lastStep: s.lastStep ?? {},
     },
     changed,
@@ -141,7 +168,7 @@ export function saveManualRate(caseNo: string, input: RateManualInput): RateInfo
   s.manualRates[caseNo] = { ...(s.manualRates[caseNo] ?? {}), [input.yearMonth]: input };
   saveStore(s);
 
-  const base = MOCK_RATES[caseNo];
+  const base = findLinkedRateInfo(caseNo, s);
   const latestManual = Object.values(s.manualRates[caseNo]).sort((a, b) =>
     a.yearMonth.localeCompare(b.yearMonth),
   ).at(-1);
@@ -160,6 +187,28 @@ export function saveManualRate(caseNo: string, input: RateManualInput): RateInfo
     normalizedCount: (base?.normalizedCount ?? 0) + manualCount,
     note: "手入力の相場情報を保存しました。",
   };
+}
+
+function findLinkedRateInfo(caseNo: string, s = loadStore()): RateInfo | undefined {
+  if (MOCK_RATES[caseNo]) return MOCK_RATES[caseNo];
+  const self = s.cases.find((item) => item.caseNo === caseNo);
+  if (!self) return undefined;
+  const exact = s.cases.find(
+    (item) =>
+      item.caseNo !== caseNo &&
+      item.company === self.company &&
+      item.product === self.product &&
+      MOCK_RATES[item.caseNo],
+  );
+  if (exact) return MOCK_RATES[exact.caseNo];
+  const sameProduct = s.cases.find(
+    (item) => item.caseNo !== caseNo && item.product === self.product && MOCK_RATES[item.caseNo],
+  );
+  return sameProduct ? MOCK_RATES[sameProduct.caseNo] : undefined;
+}
+
+export function getLinkedRateInfo(caseNo: string): RateInfo | undefined {
+  return findLinkedRateInfo(caseNo);
 }
 
 export function getLines(caseNo: string): ThreeLine[] | null {
@@ -193,6 +242,32 @@ export function addCase(summary: CaseSummary, quotedPrice: number, targetPeriod:
   const s = loadStore();
   s.cases = [summary, ...s.cases];
   s.caseExtra[summary.caseNo] = { quotedPrice, targetPeriod };
+  saveStore(s);
+}
+
+export function updateCase(
+  caseNo: string,
+  patch: Pick<CaseSummary, "company" | "product" | "updatedAt"> & {
+    quotedPrice: number;
+    targetPeriod: string;
+  },
+): void {
+  const s = loadStore();
+  s.cases = s.cases.map((item) =>
+    item.caseNo === caseNo
+      ? {
+          ...item,
+          company: patch.company,
+          product: patch.product,
+          updatedAt: patch.updatedAt,
+          status: item.status === "done" ? "negotiating" : item.status,
+        }
+      : item,
+  );
+  s.caseExtra[caseNo] = { quotedPrice: patch.quotedPrice, targetPeriod: patch.targetPeriod };
+  delete s.lines[caseNo];
+  delete s.strategies[caseNo];
+  delete s.results[caseNo];
   saveStore(s);
 }
 
@@ -262,7 +337,10 @@ export function getPastResults(
   const s = loadStore();
   return Object.values(s.results ?? {})
     .filter(
-      (r) => r.caseNo !== excludeCaseNo && (r.product === product || r.company === company),
+      (r) =>
+        r.caseNo !== excludeCaseNo &&
+        isResultComplete(r) &&
+        (r.product === product || r.company === company),
     )
     .map<PastResultMatch>((r) => ({
       record: r,

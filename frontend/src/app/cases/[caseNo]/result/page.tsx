@@ -12,6 +12,7 @@ import { ReasonTagSelector } from "@/components/ui/ReasonTagSelector";
 import { AchievementField, QuoteDiffField } from "@/components/ui/AutoCalcField";
 import { ErrorBanner } from "@/components/ui/states";
 import { api } from "@/lib/api";
+import { getMissingResultCompletionItems, isResultComplete } from "@/lib/resultCompletion";
 import {
   calcAchievementPct,
   calcQuoteDiffPct,
@@ -81,7 +82,7 @@ export default function ResultPage() {
   const [reasonCodes, setReasonCodes] = useState<string[]>([]);
   const [staffMemo, setStaffMemo] = useState(""); // 所感（今回案件の記録）
   const [handoverNote, setHandoverNote] = useState(""); // 次回への申し送り（次回案件への判断材料）
-  const [errors, setErrors] = useState<{ settled?: string; reason?: string }>({});
+  const [errors, setErrors] = useState<{ settled?: string }>({});
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
@@ -149,6 +150,22 @@ export default function ResultPage() {
   const exceedsWalkawayLine = hasSettled && walkaway > 0 && settledNum > walkaway;
   const hasSaveWarning = Boolean(settledDeviation?.shouldWarn || exceedsWalkawayLine);
   const paymentOptions = useMemo(() => paymentOptionsWithLegacyValue(paymentTerms), [paymentTerms]);
+  const currentResultInput = useMemo(
+    () => ({
+      settledPrice: settledNum,
+      deliveryTiming: deliveryTiming.trim(),
+      paymentTerms: paymentTerms.trim(),
+      reasonCodes,
+      staffMemo: staffMemo.trim(),
+      handoverNote: handoverNote.trim(),
+    }),
+    [deliveryTiming, handoverNote, paymentTerms, reasonCodes, settledNum, staffMemo],
+  );
+  const missingCompletionItems = useMemo(
+    () => (hasSettled ? getMissingResultCompletionItems(currentResultInput) : []),
+    [currentResultInput, hasSettled],
+  );
+  const resultWillComplete = hasSettled && missingCompletionItems.length === 0;
 
   // 自動計算（決着単価の入力に追従）
   const quoteDiff = useMemo(
@@ -164,7 +181,6 @@ export default function ResultPage() {
     const errs: typeof errors = {};
     const settledError = validateSettledPriceInput(settledPrice);
     if (settledError) errs.settled = settledError;
-    if (reasonCodes.length === 0) errs.reason = "決着理由を1つ以上選択してください。";
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -180,12 +196,7 @@ export default function ResultPage() {
     setNeedsSaveConfirm(false);
     try {
       const record = await saveResult(caseNo, {
-        settledPrice: settledNum,
-        deliveryTiming: deliveryTiming.trim(),
-        paymentTerms: paymentTerms.trim(),
-        reasonCodes,
-        staffMemo: staffMemo.trim(),
-        handoverNote: handoverNote.trim(),
+        ...currentResultInput,
       });
       setCompleted(record);
     } catch {
@@ -196,14 +207,10 @@ export default function ResultPage() {
   }, [
     caseNo,
     comparisonBase,
+    currentResultInput,
     settledNum,
     settledPrice,
     walkaway,
-    deliveryTiming,
-    paymentTerms,
-    reasonCodes,
-    staffMemo,
-    handoverNote,
   ]);
 
   if (loading) {
@@ -235,23 +242,45 @@ export default function ResultPage() {
     );
   }
 
-  // 保存完了（案件を完了化）
+  // 保存完了（一時保存または案件完了）
   if (completed) {
+    const completedResult = isResultComplete(completed);
+    const completedMissingItems = getMissingResultCompletionItems(completed);
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-slate-900">結果記録</h1>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6">
-          <p className="text-base font-semibold text-emerald-800">
-            ✓ 保存して案件を完了しました
+        <div
+          className={`rounded-lg border p-6 ${
+            completedResult
+              ? "border-emerald-200 bg-emerald-50"
+              : "border-blue-200 bg-blue-50"
+          }`}
+        >
+          <p
+            className={`text-base font-semibold ${
+              completedResult ? "text-emerald-800" : "text-blue-800"
+            }`}
+          >
+            {completedResult ? "✓ 保存して案件を完了しました" : "✓ 結果記録を一時保存しました"}
           </p>
-          <p className="mt-2 num text-sm text-emerald-700">
+          <p
+            className={`mt-2 num text-sm ${
+              completedResult ? "text-emerald-700" : "text-blue-700"
+            }`}
+          >
             決着 ¥{completed.settledPrice.toLocaleString("ja-JP")}/kg ／ 見積比{" "}
             {completed.quoteDiffPct >= 0 ? "+" : ""}
             {completed.quoteDiffPct}% ／ 達成度 {completed.achievementPct}%
           </p>
-          <p className="mt-2 text-sm text-emerald-700">
-            この決着結果は、次に同一商材×取引先で作成した案件の②情報収集「過去経緯」に自動で参照されます（判断継承 BR-10）。
-          </p>
+          {completedResult ? (
+            <p className="mt-2 text-sm text-emerald-700">
+              この決着結果は、次に同一商材×取引先で作成した案件の②情報収集「過去経緯」に自動で参照されます（判断継承 BR-10）。
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-blue-700">
+              不足項目（{completedMissingItems.join("・")}）があるため、案件ステータスは交渉中のままです。次回交渉に使える記録として完了するには、足りない項目を追記してください。
+            </p>
+          )}
           <div className="mt-4">
             <Button onClick={() => router.push("/cases")}>案件一覧へ戻る</Button>
           </div>
@@ -386,9 +415,7 @@ export default function ResultPage() {
             selected={reasonCodes}
             onChange={(codes) => {
               setReasonCodes(codes);
-              if (codes.length > 0) setErrors((p) => ({ ...p, reason: undefined }));
             }}
-            error={errors.reason}
           />
         </div>
       </section>
@@ -449,6 +476,15 @@ export default function ResultPage() {
         </section>
       )}
 
+      {hasSettled && !resultWillComplete && (
+        <section className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-semibold">この内容は一時保存できますが、案件はまだ完了になりません。</p>
+          <p className="mt-1">
+            次回交渉に活かすには、{missingCompletionItems.join("・")}まで入力してください。
+          </p>
+        </section>
+      )}
+
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button
           variant="secondary"
@@ -457,7 +493,7 @@ export default function ResultPage() {
           ← 作戦シートへ戻る
         </Button>
         <Button onClick={() => save(false)} loading={saving}>
-          保存して案件を完了 ✓
+          {resultWillComplete ? "保存して案件を完了 ✓" : "結果記録を保存"}
         </Button>
       </div>
     </div>

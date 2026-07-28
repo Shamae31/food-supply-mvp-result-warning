@@ -79,6 +79,16 @@ def _achievement_pct(settled: float, target: float, walkaway: float) -> float:
     return float(round(pct))
 
 
+def _is_complete_result(body: ResultInput) -> bool:
+    """次回交渉の判断材料として使える最低限の結果記録が揃っているか。"""
+    return (
+        body.settled_price > 0
+        and len(body.reason_codes) > 0
+        and body.resolved_staff_memo.strip() != ""
+        and body.resolved_handover_note.strip() != ""
+    )
+
+
 def _delivery_year_month(value: str | None) -> str | None:
     """納入時期から分析用の YYYY-MM を取り出す。
 
@@ -143,7 +153,7 @@ def save_result(
     trace_id: str = Depends(get_trace_id),
     idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
 ) -> ResultRecord:
-    """決着記録を保存し、案件を完了に遷移する。見積比・目標達成度はサーバー側で算出。"""
+    """決着記録を保存する。最低限の結果記録が揃った場合のみ案件を完了に遷移する。"""
     tenant_id = repo.tenant_id
     if idempotency_key:
         cached = idempotency_store.get(tenant_id, f"result:{idempotency_key}")
@@ -186,8 +196,8 @@ def save_result(
     result.handover_note = body.resolved_handover_note
     result.data_origin = "アプリ登録"
 
-    # 案件ステータスを完了へ（BR-10: 以後この決着は同一スペックの新案件の過去経緯に現れる）。
-    case.status = "完了"
+    # 完了 = 次回交渉の判断材料として使える状態。途中保存は交渉中のまま保持する。
+    case.status = "完了" if _is_complete_result(body) else "交渉中"
     repo.session.flush()
     record = _build_record(repo, case, result)
     repo.session.commit()

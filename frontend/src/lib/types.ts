@@ -34,6 +34,8 @@ export interface CaseCreateInput {
   targetPeriod: string; // 交渉時期
 }
 
+export type CaseUpdateInput = CaseCreateInput;
+
 /** 案件作成時に選択する取引先マスタ。 */
 export interface Supplier {
   supplierId: number;

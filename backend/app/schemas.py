@@ -79,6 +79,10 @@ class CaseCreateInput(CamelModel):
     target_period: str
 
 
+class CaseUpdateInput(CaseCreateInput):
+    """案件基本情報の更新入力。MVPでは作成時と同じ項目を編集対象にする。"""
+
+
 class CaseStatusUpdate(CamelModel):
     status: CaseStatus
 

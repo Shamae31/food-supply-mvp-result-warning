@@ -160,9 +160,9 @@ export function calcSettledPriceDeviation(
 }
 
 /**
- * 結果を保存し、案件ステータスを「完了」にする（実/モック両対応）。
- * 見積比・目標達成度はサーバー側（Real）で算出される。保存結果は判断継承（BR-10）で
- * 同一スペックの新案件の過去経緯に現れる。
+ * 結果を保存する（実/モック両対応）。
+ * 見積比・目標達成度はサーバー側（Real）で算出される。最低限の結果記録が揃った保存結果のみ、
+ * 判断継承（BR-10）で同一スペックの新案件の過去経緯に現れる。
  */
 export async function saveResult(caseNo: string, input: ResultInput): Promise<ResultRecord> {
   return api.saveResult(caseNo, input);

@@ -17,6 +17,7 @@ import { loadGsiScript, type GsiCredentialResponse } from "@/lib/gsi";
 // クライアントID（秘匿値ではない）。ビルド時に NEXT_PUBLIC_GOOGLE_CLIENT_ID から埋め込む。
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 const AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_MODE || "mock";
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
 export default function LoginPage() {
   const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
@@ -105,6 +106,18 @@ export default function LoginPage() {
     }
   }
 
+  async function onDemoGoogleLogin() {
+    setGoogleBusy(true);
+    setGoogleError(null);
+    try {
+      await loginWithGoogle("demo-google-credential");
+      router.replace("/cases");
+    } catch (err) {
+      setGoogleError(err instanceof Error ? err.message : "Google 認証に失敗しました。");
+      setGoogleBusy(false);
+    }
+  }
+
   const focus =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1";
 
@@ -135,6 +148,26 @@ export default function LoginPage() {
               ) : (
                 <div ref={googleBtnRef} className="flex justify-center" />
               )}
+              {googleError && (
+                <p role="alert" className="text-sm text-red-600">
+                  {googleError}
+                </p>
+              )}
+            </>
+          ) : USE_MOCK ? (
+            <>
+              <Button
+                variant="secondary"
+                className="w-full"
+                loading={googleBusy}
+                onClick={onDemoGoogleLogin}
+                type="button"
+              >
+                Google でログイン
+              </Button>
+              <p className="text-xs text-slate-400">
+                デモ環境では Google 検証を省略し、デモユーザーとしてログインします。
+              </p>
               {googleError && (
                 <p role="alert" className="text-sm text-red-600">
                   {googleError}

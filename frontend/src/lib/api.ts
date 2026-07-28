@@ -14,12 +14,14 @@ import {
   MOCK_REASON_TAGS,
   MOCK_SUPPLIERS,
 } from "@/lib/mock/data";
+import { isResultComplete } from "@/lib/resultCompletion";
 import * as store from "@/lib/store";
 import type {
   AuthUser,
   CaseCreateInput,
   CaseDetail,
   CaseStatus,
+  CaseUpdateInput,
   CompanyPlan,
   PastCase,
   PastCaseResult,
@@ -53,6 +55,7 @@ export interface Api {
   listCases(filter: CaseListFilter): Promise<CaseListResult>;
   listSuppliers(): Promise<Supplier[]>;
   createCase(input: CaseCreateInput): Promise<CaseDetail>;
+  updateCase(caseNo: string, input: CaseUpdateInput): Promise<CaseDetail>;
   getCase(caseNo: string): Promise<CaseDetail>;
   getRateInfo(caseNo: string): Promise<RateInfo>;
   saveManualRate(caseNo: string, input: RateManualInput): Promise<RateInfo>;
@@ -176,6 +179,26 @@ class MockApi implements Api {
     };
   }
 
+  async updateCase(caseNo: string, input: CaseUpdateInput): Promise<CaseDetail> {
+    await delay(400);
+    const current = await this.getCase(caseNo);
+    const supplier = MOCK_SUPPLIERS.find((item) => item.supplierId === input.supplierId);
+    if (!supplier) throw new Error("取引先が未登録です");
+    const targetYearMonth = /^\d{4}-\d{2}$/.test(input.targetPeriod) ? input.targetPeriod : null;
+    store.updateCase(caseNo, {
+      company: supplier.supplierName,
+      product: input.product,
+      quotedPrice: input.quotedPrice,
+      targetPeriod: input.targetPeriod,
+      updatedAt: formatToday(),
+    });
+    return {
+      ...toDetail(caseNo),
+      targetYearMonth,
+      currentStep: current.currentStep,
+    };
+  }
+
   async getCase(caseNo: string): Promise<CaseDetail> {
     await delay(200);
     return toDetail(caseNo);
@@ -184,12 +207,12 @@ class MockApi implements Api {
   async getRateInfo(caseNo: string): Promise<RateInfo> {
     await delay(250);
     const manualRates = store.loadStore().manualRates?.[caseNo];
+    const base = store.getLinkedRateInfo(caseNo);
     if (manualRates && Object.keys(manualRates).length > 0) {
       const validManualRates = Object.values(manualRates).filter(
         (rate): rate is RateManualInput =>
           typeof rate?.yearMonth === "string" && typeof rate.priceYenKg === "number",
       );
-      const base = MOCK_RATES[caseNo];
       if (validManualRates.length === 0) return base ?? this.getRateInfoFallback();
       const latestManual = validManualRates
         .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
@@ -209,9 +232,13 @@ class MockApi implements Api {
         note: "手入力の相場情報を保存しました。",
       };
     }
-    return (
-      MOCK_RATES[caseNo] ?? this.getRateInfoFallback()
-    );
+    if (!base) return this.getRateInfoFallback();
+    return MOCK_RATES[caseNo]
+      ? base
+      : {
+          ...base,
+          note: `${base.note}（同一商材の相場を参照）`,
+        };
   }
 
   private getRateInfoFallback(): RateInfo {
@@ -425,7 +452,7 @@ class MockApi implements Api {
       savedAt: new Date().toISOString(),
     };
     store.setResult(caseNo, record);
-    store.setCaseStatus(caseNo, "done"); // 案件を完了化（BR-10 で新案件の過去経緯に現れる）
+    store.setCaseStatus(caseNo, isResultComplete(record) ? "done" : "negotiating");
     return record;
   }
 }
@@ -507,6 +534,12 @@ class RealApi implements Api {
       method: "POST",
       body: JSON.stringify(input),
       headers: { "Idempotency-Key": idempotencyKey },
+    });
+  }
+  updateCase(caseNo: string, input: CaseUpdateInput): Promise<CaseDetail> {
+    return this.req<CaseDetail>(`/cases/${encodeURIComponent(caseNo)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
     });
   }
   getCase(caseNo: string): Promise<CaseDetail> {

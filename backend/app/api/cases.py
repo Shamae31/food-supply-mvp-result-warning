@@ -3,6 +3,7 @@
 - GET  /cases                … 一覧・検索（keyword / status）
 - POST /cases                … 作成（NumberingService 採番・冪等キー・監査）
 - GET  /cases/{case_no}      … 詳細
+- PATCH /cases/{case_no}        … 基本情報更新
 - PATCH /cases/{case_no}/status … 状態遷移
 
 読み書きとも ``TenantScopedRepository``（get_repo）経由に統一し、テナント境界を強制する
@@ -22,7 +23,7 @@ from app.db.numbering import SequentialNumberingService
 from app.db.repository import TenantScopedRepository
 from app.errors import ApiProblem
 from app.observability.logging import emit_audit
-from app.schemas import CaseCreateInput, CaseDetail, CaseListResult, CaseStatusUpdate
+from app.schemas import CaseCreateInput, CaseDetail, CaseListResult, CaseStatusUpdate, CaseUpdateInput
 from app.services.case_view import build_case_detail, load_case, ui_status_to_db
 
 router = APIRouter(tags=["cases"])
@@ -159,6 +160,34 @@ def get_case(
     if case is None:
         raise ApiProblem(404, "案件が見つかりません", detail=f"{case_no} は存在しません。")
     return build_case_detail(repo, case)
+
+
+@router.patch("/cases/{case_no}", response_model=CaseDetail)
+def update_case(
+    case_no: str,
+    body: CaseUpdateInput,
+    repo: TenantScopedRepository = Depends(get_repo),
+    user_id: str = Depends(get_current_user),
+    trace_id: str = Depends(get_trace_id),
+) -> CaseDetail:
+    """案件の基本情報を更新する。取引先は登録済みマスタからのみ選択する。"""
+    case = load_case(repo, case_no)
+    if case is None:
+        raise ApiProblem(404, "案件が見つかりません", detail=f"{case_no} は存在しません。")
+    supplier = repo.get(m.Supplier, supplier_id=body.supplier_id)
+    if supplier is None:
+        raise ApiProblem(422, "取引先が未登録です", detail="登録済みの取引先を選択してください。")
+
+    case.supplier_id = supplier.supplier_id
+    case.spec_id = _resolve_spec(repo, body.product.strip())
+    case.period = _period_for_case(body.target_period)
+    case.target_year_month = _target_year_month(body.target_period)
+    case.proposed_price = body.quoted_price
+    repo.session.flush()
+    detail = build_case_detail(repo, case)
+    repo.session.commit()
+    emit_audit("case.update", tenant_id=repo.tenant_id, user_id=user_id, trace_id=trace_id, case_no=case_no)
+    return detail
 
 
 @router.patch("/cases/{case_no}/status", response_model=CaseDetail)

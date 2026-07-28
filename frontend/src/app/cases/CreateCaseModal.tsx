@@ -13,6 +13,9 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: (detail: CaseDetail) => void;
+  mode?: "create" | "edit";
+  initialCase?: CaseDetail | null;
+  onUpdated?: (detail: CaseDetail) => void;
 }
 
 interface FieldErrors {
@@ -22,7 +25,14 @@ interface FieldErrors {
   targetPeriod?: string;
 }
 
-export function CreateCaseModal({ open, onClose, onCreated }: Props) {
+export function CreateCaseModal({
+  open,
+  onClose,
+  onCreated,
+  mode = "create",
+  initialCase = null,
+  onUpdated,
+}: Props) {
   const [supplierId, setSupplierId] = useState<number | null>(null);
   const [supplierQuery, setSupplierQuery] = useState("");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -51,6 +61,36 @@ export function CreateCaseModal({ open, onClose, onCreated }: Props) {
       active = false;
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (mode === "edit" && initialCase) {
+      // 編集対象が変わったときにフォーム初期値を同期するための意図的な state 反映。
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSupplierQuery(initialCase.company);
+      setProduct(initialCase.product);
+      setQuotedPrice(String(initialCase.quotedPrice));
+      setTargetPeriod(initialCase.targetYearMonth ?? initialCase.targetPeriod);
+      setErrors({});
+      return;
+    }
+    if (mode === "create") {
+      setSupplierId(null);
+      setSupplierQuery("");
+      setProduct("");
+      setQuotedPrice("");
+      setTargetPeriod("");
+      setErrors({});
+    }
+  }, [initialCase, mode, open]);
+
+  useEffect(() => {
+    if (!open || mode !== "edit" || !initialCase || suppliers.length === 0) return;
+    const supplier = suppliers.find((item) => item.supplierName === initialCase.company);
+    // 取引先マスタ取得後に、表示名から選択IDを復元する。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSupplierId(supplier?.supplierId ?? null);
+  }, [initialCase, mode, open, suppliers]);
 
   const filteredSuppliers = useMemo(() => {
     const keyword = supplierQuery.trim().toLowerCase();
@@ -83,27 +123,34 @@ export function CreateCaseModal({ open, onClose, onCreated }: Props) {
 
     setSubmitting(true);
     try {
-      const detail = await api.createCase({
+      const input = {
         supplierId,
         product: product.trim(),
         quotedPrice: Number(quotedPrice),
         targetPeriod: targetPeriod.trim(),
-      });
-      // 入力をリセット
-      setSupplierId(null);
-      setSupplierQuery("");
-      setProduct("");
-      setQuotedPrice("");
-      setTargetPeriod("");
+      };
+      const detail =
+        mode === "edit" && initialCase
+          ? await api.updateCase(initialCase.caseNo, input)
+          : await api.createCase(input);
       setErrors({});
-      onCreated(detail);
+      if (mode === "edit") {
+        onUpdated?.(detail);
+      } else {
+        setSupplierId(null);
+        setSupplierQuery("");
+        setProduct("");
+        setQuotedPrice("");
+        setTargetPeriod("");
+        onCreated(detail);
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="新規案件作成">
+    <Modal open={open} onClose={onClose} title={mode === "edit" ? "案件基本情報を修正" : "新規案件作成"}>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="取引先企業" required error={errors.supplier || suppliersError} htmlFor="supplier-search">
           <div className="space-y-2">
@@ -188,7 +235,7 @@ export function CreateCaseModal({ open, onClose, onCreated }: Props) {
             キャンセル
           </Button>
           <Button type="submit" loading={submitting}>
-            作成して情報収集へ
+            {mode === "edit" ? "修正を保存" : "作成して情報収集へ"}
           </Button>
         </div>
       </form>

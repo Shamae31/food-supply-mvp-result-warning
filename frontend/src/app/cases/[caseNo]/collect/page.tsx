@@ -23,6 +23,16 @@ export default function CollectPage() {
   const [rate, setRate] = useState<RateInfo | null>(null);
   const [plan, setPlan] = useState<CompanyPlan>(EMPTY_PLAN);
   const [planSaved, setPlanSaved] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    function onCaseUpdated(event: Event) {
+      const updatedCaseNo = (event as CustomEvent<{ caseNo?: string }>).detail?.caseNo;
+      if (updatedCaseNo === caseNo) setReloadKey((value) => value + 1);
+    }
+    window.addEventListener("negotius:case-updated", onCaseUpdated);
+    return () => window.removeEventListener("negotius:case-updated", onCaseUpdated);
+  }, [caseNo]);
 
   useEffect(() => {
     api.getRateInfo(caseNo).then(setRate);
@@ -42,7 +52,7 @@ export default function CollectPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <RatePanel caseNo={caseNo} rate={rate} onSaved={setRate} />
-        <PastCasePanel caseNo={caseNo} />
+        <PastCasePanel caseNo={caseNo} reloadKey={reloadKey} />
         <PlanPanel
           caseNo={caseNo}
           plan={plan}
@@ -296,7 +306,7 @@ function ManualRateModal({
 }
 
 /** 過去経緯パネル（§3.2・部分エラー・空・ローディング対応。KRE スタブ相当） */
-function PastCasePanel({ caseNo }: { caseNo: string }) {
+function PastCasePanel({ caseNo, reloadKey }: { caseNo: string; reloadKey: number }) {
   const [result, setResult] = useState<PastCaseResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -313,7 +323,7 @@ function PastCasePanel({ caseNo }: { caseNo: string }) {
 
   // 過去経緯（KRE スタブ相当・外部システム）の初回検索のための意図的な effect。
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(load, [load]);
+  useEffect(load, [load, reloadKey]);
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5">
