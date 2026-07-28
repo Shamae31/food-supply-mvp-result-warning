@@ -43,6 +43,7 @@ export function TopBar() {
 
   const navItems = [
     { href: "/cases", label: "案件一覧" },
+    { href: "/dashboard", label: "ダッシュボード" },
     { href: "/master", label: "マスタ管理" },
   ];
 

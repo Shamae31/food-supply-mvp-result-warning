@@ -172,6 +172,7 @@ export default function ResultPage() {
     () => (hasSettled ? calcQuoteDiffPct(settledNum, quoted) : null),
     [hasSettled, settledNum, quoted],
   );
+  const quoteDifference = hasSettled ? settledNum - quoted : null;
   const achievement = useMemo(
     () => (hasSettled ? calcAchievementPct(settledNum, target, walkaway) : null),
     [hasSettled, settledNum, target, walkaway],
@@ -331,6 +332,46 @@ export default function ResultPage() {
             onChange={(e) => setPaymentTerms(e.target.value)}
             options={paymentOptions}
           />
+        </div>
+        <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium text-slate-500">見積単価</p>
+              <p className="num mt-1 text-xl font-semibold text-slate-900">
+                ¥{quoted.toLocaleString("ja-JP")}
+                <span className="ml-1 text-sm font-medium text-slate-500">/kg</span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">決着単価</p>
+              <p className="num mt-1 text-xl font-semibold text-slate-900">
+                {hasSettled ? (
+                  <>
+                    ¥{settledNum.toLocaleString("ja-JP")}
+                    <span className="ml-1 text-sm font-medium text-slate-500">/kg</span>
+                  </>
+                ) : (
+                  <span className="text-base font-medium text-slate-400">入力待ち</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">見積との差額</p>
+              <p
+                className={`num mt-1 text-xl font-semibold ${
+                  quoteDifference === null
+                    ? "text-slate-400"
+                    : quoteDifference <= 0
+                      ? "text-emerald-700"
+                      : "text-red-700"
+                }`}
+              >
+                {quoteDifference === null
+                  ? "入力待ち"
+                  : `${formatSignedNumber(quoteDifference)}円/kg`}
+              </p>
+            </div>
+          </div>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <QuoteDiffField label="見積比（自動計算）" pct={quoteDiff ?? 0} />
