@@ -101,7 +101,7 @@ export default function ResultPage() {
         api.getPastCases(caseNo).catch(() => null),
       ]);
       if (!alive) return;
-      if (lines.lines.length === 0) {
+      if (lines.lines.length === 0 && !existing) {
         setNotReady(true);
         setLoading(false);
         return;
@@ -109,7 +109,7 @@ export default function ResultPage() {
       setQuoted(detail.quotedPrice);
       setPlanPrice(plan?.planPrice ?? null);
       setPreviousSettledPrice(past?.state === "ready" ? findPreviousSettledPrice(past.items) : null);
-      setTarget(lines.lines.find((l) => l.type === "target")?.value ?? detail.quotedPrice);
+      setTarget(lines.lines.find((l) => l.type === "target")?.value ?? existing?.settledPrice ?? detail.quotedPrice);
       setWalkaway(lines.lines.find((l) => l.type === "walkaway")?.value ?? detail.quotedPrice);
       setTags(reasonTags);
       // 既存の結果があれば入力欄に復元（再編集可能）
