@@ -86,6 +86,9 @@ function RatePanel({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5">
       <h2 className="text-lg font-semibold text-slate-900">相場情報</h2>
+      <p className="mt-1 text-xs leading-5 text-slate-500">
+        交渉前に参照する相場価格・対象年月・出典を確認します。
+      </p>
       {!rate ? (
         <div className="mt-4 space-y-3">
           <SkeletonCard />
@@ -317,6 +320,9 @@ function PastCasePanel({ caseNo }: { caseNo: string }) {
       <h2 className="text-lg font-semibold text-slate-900">
         過去経緯 <span className="text-sm font-normal text-slate-500">（自動参照）</span>
       </h2>
+      <p className="mt-1 text-xs leading-5 text-slate-500">
+        同一取引先・同一商材の前回決着や申し送りを確認し、今回交渉の判断材料にします。
+      </p>
 
       {loading && (
         <div className="mt-4 space-y-3">
@@ -416,6 +422,9 @@ function PlanPanel({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5">
       <h2 className="text-lg font-semibold text-slate-900">自社計画</h2>
+      <p className="mt-1 text-xs leading-5 text-slate-500">
+        社内の計画単価・発注量・許容上限を入力し、3ライン算出の基準にします。
+      </p>
       <div className="mt-4 space-y-4">
         <TextField
           label="目標原価率（%）"

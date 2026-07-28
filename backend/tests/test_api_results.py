@@ -58,6 +58,30 @@ def test_get_result_roundtrip(api) -> None:
     assert got["settledPrice"] == 600 and got["staffMemo"] == "n"
 
 
+def test_delivery_timing_saved_as_structured_year_month(api) -> None:
+    """納入時期は既存 deliveryTerm 互換を保ちつつ、分析用 YYYY-MM としても保存する。"""
+    res = api.client.post(
+        "/api/cases/No.123456-a/result",
+        headers=api.headers(),
+        json={
+            "settledPrice": 600,
+            "deliveryTiming": "2026-08",
+            "paymentTerms": "月末締め翌月末払い",
+            "reasonCodes": ["RC-01"],
+            "staffMemo": "納入年月を構造化",
+        },
+    )
+    assert res.status_code == 201
+    body = res.json()
+    assert body["deliveryTiming"] == "2026-08"
+    assert body["deliveryYearMonth"] == "2026-08"
+
+    with api.new_session() as s:
+        row = [r for r in s.query(m.NegotiationResult).all() if r.case_no == "No.123456-a"][0]
+        assert row.delivery_year_month == "2026-08"
+        assert row.delivery_term == "2026-08"
+
+
 def test_memo_handover_separated(api) -> None:
     """所感→staff_memo、申し送り→handover_note に別々に保存され、再取得で別々に復元される（issue #6）。"""
     payload = {

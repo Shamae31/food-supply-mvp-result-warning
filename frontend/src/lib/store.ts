@@ -57,6 +57,51 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
+function mergeSeedData(s: StoreShape): { store: StoreShape; changed: boolean } {
+  let changed = false;
+  const cases = [...(s.cases ?? [])];
+  const caseNos = new Set(cases.map((c) => c.caseNo));
+
+  for (const mockCase of MOCK_CASES) {
+    if (!caseNos.has(mockCase.caseNo)) {
+      cases.push(mockCase);
+      caseNos.add(mockCase.caseNo);
+      changed = true;
+    }
+  }
+
+  const caseExtra = { ...(s.caseExtra ?? {}) };
+  for (const [caseNo, detail] of Object.entries(MOCK_CASE_DETAILS)) {
+    if (!caseExtra[caseNo]) {
+      caseExtra[caseNo] = { quotedPrice: detail.quotedPrice, targetPeriod: detail.targetPeriod };
+      changed = true;
+    }
+  }
+
+  const plans = { ...(s.plans ?? {}) };
+  for (const [caseNo, plan] of Object.entries(MOCK_PLANS)) {
+    if (!plans[caseNo]) {
+      plans[caseNo] = plan;
+      changed = true;
+    }
+  }
+
+  return {
+    store: {
+      ...s,
+      cases,
+      caseExtra,
+      plans,
+      manualRates: s.manualRates ?? {},
+      lines: s.lines ?? {},
+      strategies: s.strategies ?? {},
+      results: s.results ?? {},
+      lastStep: s.lastStep ?? {},
+    },
+    changed,
+  };
+}
+
 export function loadStore(): StoreShape {
   if (!isBrowser()) return seed();
   try {
@@ -66,7 +111,9 @@ export function loadStore(): StoreShape {
       window.localStorage.setItem(KEY, JSON.stringify(s));
       return s;
     }
-    return JSON.parse(raw) as StoreShape;
+    const merged = mergeSeedData(JSON.parse(raw) as StoreShape);
+    if (merged.changed) window.localStorage.setItem(KEY, JSON.stringify(merged.store));
+    return merged.store;
   } catch {
     return seed();
   }

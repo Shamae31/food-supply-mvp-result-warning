@@ -46,6 +46,7 @@ export interface Supplier {
 export interface CaseDetail extends CaseSummary {
   quotedPrice: number;
   targetPeriod: string;
+  targetYearMonth?: string | null;
   currentStep: WorkspaceStep; // 最後にいたステップ
 }
 
@@ -195,6 +196,7 @@ export interface ResultCalc {
 
 /** 保存済みの結果記録 */
 export interface ResultRecord extends ResultInput, ResultCalc {
+  deliveryYearMonth?: string | null; // 実APIで返る分析用の構造化納入年月（YYYY-MM）
   caseNo: string;
   company: string;
   product: string;

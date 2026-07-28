@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -81,6 +82,27 @@ def _to_datetime(value) -> datetime | None:
         except ValueError:
             continue
     raise ValueError(f"日時を解釈できません: {value!r}")
+
+
+def _delivery_year_month(value) -> str | None:
+    """旧形式の納入時期文字列から YYYY-MM を抽出する。"""
+    if value in (None, ""):
+        return None
+    match = re.search(r"(20\d{2})[-/年](0?[1-9]|1[0-2])", str(value))
+    if match is None:
+        return None
+    return f"{match.group(1)}-{int(match.group(2)):02d}"
+
+
+def _period_year_month(value) -> str | None:
+    """四半期（2026Q3）または年月から代表 YYYY-MM を作る。"""
+    if value in (None, ""):
+        return None
+    s = str(value).strip()
+    qm = re.fullmatch(r"(20\d{2})Q([1-4])", s)
+    if qm is not None:
+        return f"{qm.group(1)}-{(int(qm.group(2)) - 1) * 3 + 1:02d}"
+    return _delivery_year_month(s)
 
 
 def _split_csv_field(value) -> list[str]:
@@ -232,6 +254,7 @@ def _load_cases_and_children(
                 supplier_id=_to_int(r["supplier_id"]),
                 spec_id=_to_int(r["spec_id"]),
                 period=r.get("period"),
+                target_year_month=_period_year_month(r.get("period")),
                 case_type=r.get("case_type"),
                 status=r.get("status"),
                 current_price=_to_decimal(r.get("current_price")),
@@ -283,6 +306,7 @@ def _load_cases_and_children(
                 result_date=_to_date(r.get("result_date")),
                 final_price=_to_decimal(r.get("final_price")),
                 delivery_term=r.get("delivery_term"),
+                delivery_year_month=_delivery_year_month(r.get("delivery_term")),
                 payment_site=r.get("payment_site"),
                 vs_quote=_to_decimal(r.get("vs_quote")),
                 vs_landing=_to_decimal(r.get("vs_landing")),

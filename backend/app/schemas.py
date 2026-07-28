@@ -60,6 +60,7 @@ class CaseDetail(CamelModel):
     assignee: str
     quoted_price: float
     target_period: str
+    target_year_month: Optional[str] = None  # 分析用の構造化交渉時期（YYYY-MM）
     current_step: WorkspaceStep = "collect"
 
 
@@ -233,6 +234,7 @@ class ResultRecord(CamelModel):
 
     settled_price: float
     delivery_timing: str
+    delivery_year_month: Optional[str] = None  # 分析用の構造化納入年月（YYYY-MM）
     payment_terms: str
     reason_codes: list[str]
     staff_memo: str  # 所感（今回案件の記録）

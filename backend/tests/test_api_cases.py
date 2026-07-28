@@ -53,13 +53,20 @@ def test_create_case_and_numbering(api) -> None:
     res = api.client.post(
         "/api/cases",
         headers=api.headers(),
-        json={"supplierId": 1, "product": "冷凍エビ", "quotedPrice": 900, "targetPeriod": "2026Q4"},
+        json={"supplierId": 1, "product": "冷凍エビ", "quotedPrice": 900, "targetPeriod": "2026-08"},
     )
     assert res.status_code == 201
     body = res.json()
     assert body["caseNo"] == "No.500001-a"
     assert body["status"] == "before"
     assert body["company"] == "丸紅畜産"
+    assert body["targetPeriod"] == "2026-08"
+    assert body["targetYearMonth"] == "2026-08"
+
+    with api.new_session() as s:
+        row = [c for c in s.query(m.NegotiationCase).all() if c.case_no == "No.500001-a"][0]
+        assert row.target_year_month == "2026-08"
+        assert row.period == "2026Q3"
 
 
 def test_create_case_rejects_non_positive_quoted_price(api) -> None:

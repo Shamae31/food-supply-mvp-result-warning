@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, Query
@@ -26,6 +27,27 @@ from app.services.case_view import build_case_detail, load_case, ui_status_to_db
 
 router = APIRouter(tags=["cases"])
 _numbering = SequentialNumberingService()
+
+
+def _target_year_month(value: str) -> str | None:
+    match = re.search(r"(20\d{2})[-/年](0?[1-9]|1[0-2])", value)
+    if match is None:
+        return None
+    return f"{match.group(1)}-{int(match.group(2)):02d}"
+
+
+def _period_for_case(value: str) -> str:
+    """交渉時期を既存の四半期 period へ正規化する。
+
+    自社計画・3ライン算出は period（例: 2026Q3）で既存データと照合しているため、
+    新しい年月入力は構造化カラムへ保存しつつ、互換用 period も保持する。
+    """
+    ym = _target_year_month(value)
+    if ym is None:
+        return value
+    year, month = ym.split("-")
+    quarter = (int(month) - 1) // 3 + 1
+    return f"{year}Q{quarter}"
 
 
 @router.get("/cases", response_model=CaseListResult)
@@ -101,13 +123,15 @@ def create_case(
     spec_id = _resolve_spec(repo, body.product.strip())
     # 採番は内部ユーティリティ（tenant 必須・Repository 外の例外。numbering.py の説明参照）。
     case_no = _numbering.next_case_no(repo.session, tenant_id)
+    target_year_month = _target_year_month(body.target_period)
 
     case = repo.add(
         m.NegotiationCase(
             case_no=case_no,
             supplier_id=supplier.supplier_id,
             spec_id=spec_id,
-            period=body.target_period,
+            period=_period_for_case(body.target_period),
+            target_year_month=target_year_month,
             status="交渉前",
             proposed_price=body.quoted_price,
             created_by=user_id,
