@@ -72,6 +72,7 @@ export interface Api {
   getReasonTags(): Promise<ReasonTag[]>;
   getResult(caseNo: string): Promise<ResultRecord | null>;
   saveResult(caseNo: string, input: ResultInput): Promise<ResultRecord>;
+  resetDemoData(): Promise<void>;
 }
 
 /** ネットワーク遅延を模した待機（モックのローディング表示を確認できるように） */
@@ -463,6 +464,11 @@ class MockApi implements Api {
     store.setCaseStatus(caseNo, isResultComplete(record) ? "done" : "negotiating");
     return record;
   }
+
+  async resetDemoData(): Promise<void> {
+    await delay(200);
+    store.resetDemoStore();
+  }
 }
 
 /** ---- 実 API 実装（NEXT_PUBLIC_USE_MOCK=false）----
@@ -613,6 +619,9 @@ class RealApi implements Api {
       body: JSON.stringify(input),
       headers: { "Idempotency-Key": idempotencyKey },
     });
+  }
+  resetDemoData(): Promise<void> {
+    return Promise.reject(new Error("デモ状態のリセットはモック環境のみ利用できます。"));
   }
 }
 

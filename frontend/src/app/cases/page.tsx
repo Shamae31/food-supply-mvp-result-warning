@@ -37,6 +37,7 @@ function CasesInner() {
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState<CaseStatus | "all">("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [resettingDemo, setResettingDemo] = useState(false);
   // 検索が実行済みか（空状態の文言を「初回」か「結果0件」で切り替える）
   const [filtered, setFiltered] = useState(false);
 
@@ -73,6 +74,22 @@ function CasesInner() {
     load({ status: "all" }, false);
   }
 
+  async function resetDemoData() {
+    const ok = window.confirm(
+      "デモ用に作成した案件や入力内容を初期状態に戻します。No.500001 の前回案件は残ります。実行しますか？",
+    );
+    if (!ok) return;
+    setResettingDemo(true);
+    try {
+      await api.resetDemoData();
+      setKeyword("");
+      setStatus("all");
+      await load({ status: "all" }, false);
+    } finally {
+      setResettingDemo(false);
+    }
+  }
+
   const columns: Column<CaseDetail>[] = [
     { key: "caseNo", header: "案件番号", width: "120px", render: (r) => r.caseNo },
     { key: "company", header: "企業", render: (r) => r.company },
@@ -96,7 +113,12 @@ function CasesInner() {
             Negotiusは、仕入交渉の判断材料を整理し、結果を次回に活かせるかを検証するMVPです。
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>＋ 新規案件作成</Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="secondary" onClick={resetDemoData} loading={resettingDemo}>
+            デモ状態に戻す
+          </Button>
+          <Button onClick={() => setModalOpen(true)}>＋ 新規案件作成</Button>
+        </div>
       </div>
 
       {/* フィルタバー */}
@@ -141,7 +163,11 @@ function CasesInner() {
             </span>
           </div>
         </div>
-        <Button variant="secondary" onClick={onSearch}>
+        <Button
+          variant="secondary"
+          onClick={onSearch}
+          className="!border-blue-300 !bg-blue-50 !text-blue-700 hover:!bg-blue-100"
+        >
           検索実行
         </Button>
         {filtered && (

@@ -240,6 +240,11 @@ export function saveStore(s: StoreShape): void {
   window.localStorage.setItem(KEY, JSON.stringify(s));
 }
 
+export function resetDemoStore(): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(KEY, JSON.stringify(seed()));
+}
+
 export function getPlan(caseNo: string): CompanyPlan {
   const s = loadStore();
   return s.plans[caseNo] ?? { ...EMPTY_PLAN };
