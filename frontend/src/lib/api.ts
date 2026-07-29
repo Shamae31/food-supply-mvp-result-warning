@@ -85,6 +85,8 @@ const STATUS_LABEL: Record<CaseStatus, string> = {
   done: "完了",
 };
 
+const STATIC_ONLY_PAST_CASES = new Set(["No.500002"]);
+
 function toDetail(caseNo: string): CaseDetail {
   const summary = store.getCases().find((c) => c.caseNo === caseNo);
   const extra = store.getCaseExtra(caseNo);
@@ -268,7 +270,7 @@ class MockApi implements Api {
     // backend（related_past_results）と同じ意味論: 商材キー一致=direct（relation なし）、
     // 取引先キー一致（別商材）=same_supplier（グラフ補完）。
     const self = store.getCases().find((c) => c.caseNo === caseNo);
-    const dynamic = self
+    const dynamic = self && !STATIC_ONLY_PAST_CASES.has(caseNo)
       ? store.getPastResults(self.company, self.product, caseNo).map<PastCase>((match) => {
           const r = match.record;
           return {
@@ -295,7 +297,13 @@ class MockApi implements Api {
         })
       : [];
 
-    const items = [...dynamic, ...staticItems];
+    const seen = new Set<string>();
+    const items = [...dynamic, ...staticItems].filter((item) => {
+      const key = `${item.caseNo}:${item.relation ?? "direct"}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     if (items.length === 0) {
       // 過去取引なし（過去案件・決着記録ともに無い）
       return { state: "empty", items: [] };

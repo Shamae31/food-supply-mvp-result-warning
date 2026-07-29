@@ -20,8 +20,8 @@ export const MOCK_CASES: CaseSummary[] = [
     caseNo: "No.500001",
     company: "丸紅畜産",
     product: "鶏もも肉（ブラジル産・冷凍）",
-    status: "negotiating",
-    updatedAt: "07/09",
+    status: "done",
+    updatedAt: "07/10",
     assignee: "田中",
   },
   {
@@ -135,7 +135,8 @@ export const MOCK_CASES: CaseSummary[] = [
 
 /** 案件詳細（ワークスペースヘッダー用）。一覧に無い項目を補完する。 */
 export const MOCK_CASE_DETAILS: Record<string, Omit<CaseDetail, keyof CaseSummary>> = {
-  "No.500001": { quotedPrice: 620, targetPeriod: "2026Q3", currentStep: "collect" },
+  "No.500002": { quotedPrice: 615, targetPeriod: "2026-07", currentStep: "collect" },
+  "No.500001": { quotedPrice: 615, targetPeriod: "2026-04", currentStep: "result" },
   "No.499998": { quotedPrice: 780, targetPeriod: "2026Q3", currentStep: "collect" },
   "No.499987": { quotedPrice: 1580, targetPeriod: "2026Q2", currentStep: "result" },
   "No.499960": { quotedPrice: 430, targetPeriod: "2025Q4", currentStep: "result" },
@@ -154,18 +155,31 @@ export const MOCK_CASE_DETAILS: Record<string, Omit<CaseDetail, keyof CaseSummar
 /** 相場情報（案件番号 → 相場）。デザインガイド §3.2 のサンプル ¥620/kg。
  *  currentPrice（現行仕入単価）・yoyRate（相場前年同月比）は CALC_RULE_V1 の撤退ライン算出に使用。 */
 export const MOCK_RATES: Record<string, RateInfo> = {
+  "No.500002": {
+    registered: true,
+    latestPrice: 600,
+    currentPrice: 598, // 前回決着を踏まえた現行の仕入単価
+    yoyRate: 0.047, // 相場前年同月比 +4.7%（デモ値）
+    yearMonth: "2026-07",
+    source: "MVP検証用デモデータ",
+    inputMethod: "手入力",
+    updatedAt: "2026-07-29T09:00:00Z",
+    unit: "円/kg",
+    normalizedCount: 12,
+    note: "相場価格はMVP検証用のデモ値。実運用では取得元・更新頻度・商材粒度の確定が必要。",
+  },
   "No.500001": {
     registered: true,
-    latestPrice: 620,
-    currentPrice: 610, // 現行の仕入単価
-    yoyRate: 0.03, // 相場前年同月比 +3%（上昇局面）
-    yearMonth: "2026-07",
-    source: "農水省 卸売市場統計",
-    inputMethod: "CSV",
+    latestPrice: 600,
+    currentPrice: 598,
+    yoyRate: 0.047,
+    yearMonth: "2026-04",
+    source: "MVP検証用デモデータ",
+    inputMethod: "手入力",
     updatedAt: "2026-07-10T09:00:00Z",
     unit: "円/kg",
     normalizedCount: 12,
-    note: "日付・%表記ゆれを自動補正済み（Jul-25→2025-07 等）",
+    note: "前回案件の確認用デモデータ。",
   },
   "No.499998": {
     registered: true,
@@ -237,26 +251,26 @@ export const MOCK_RATES: Record<string, RateInfo> = {
 /** 過去経緯（案件番号 → 過去案件）。KRE スタブ相当のモック。
  *  同一取引先の別商材（same_supplier）をグラフ補完として含める（要件 §5.4 受け入れ条件3）。 */
 export const MOCK_PAST_CASES: Record<string, PastCase[]> = {
-  "No.500001": [
+  "No.500002": [
     {
-      caseNo: "No.499801",
+      caseNo: "No.500001",
       company: "丸紅畜産",
       product: "鶏もも肉（ブラジル産・冷凍）",
-      period: "2026Q1",
+      period: "2026-04",
       settledPrice: 598,
       relation: undefined,
       citations: [
         {
-          caseNo: "No.499801",
+          caseNo: "No.500001",
           company: "丸紅畜産",
           product: "鶏もも肉（ブラジル産・冷凍）",
-          snippet: "為替影響を根拠に据え置きで決着。決着単価 ¥598/kg（見積比 -3.5%）。",
+          snippet: "前回は615円/kgの見積に対し、598円/kgで決着。見積比 -2.8%。",
         },
         {
-          caseNo: "No.499801",
+          caseNo: "No.500001",
           company: "丸紅畜産",
           product: "鶏もも肉（ブラジル産・冷凍）",
-          snippet: "長期契約（年間96,000kg）を条件に数量メリットを訴求。",
+          snippet: "次回も598円/kgを起点に、数量継続と相場差を確認して交渉する。",
         },
       ],
     },
@@ -332,11 +346,17 @@ export const MOCK_PAST_CASES: Record<string, PastCase[]> = {
 
 /** 自社計画の初期値（案件番号 → 計画）。②で保存すると③の算出に反映される。 */
 export const MOCK_PLANS: Record<string, CompanyPlan> = {
+  "No.500002": {
+    targetCostRate: 30,
+    planPrice: 612,
+    monthlyVolume: 10000,
+    ceilingPrice: 626,
+  },
   "No.500001": {
     targetCostRate: 30,
-    planPrice: 615,
-    monthlyVolume: 8000,
-    ceilingPrice: 625,
+    planPrice: 612,
+    monthlyVolume: 10000,
+    ceilingPrice: 626,
   },
   "No.499960": {
     targetCostRate: 28,
@@ -373,6 +393,21 @@ export const EMPTY_PLAN: CompanyPlan = {
 };
 
 export const MOCK_RESULTS: Record<string, ResultRecord> = {
+  "No.500001": {
+    caseNo: "No.500001",
+    company: "丸紅畜産",
+    product: "鶏もも肉（ブラジル産・冷凍）",
+    period: "2026-04",
+    settledPrice: 598,
+    deliveryTiming: "2026-04",
+    paymentTerms: "月末締め翌月末払い",
+    reasonCodes: ["RC-03", "RC-04"],
+    staffMemo: "為替影響と原材料価格を理由に615円/kgの見積提示があったが、前回実績と数量継続を根拠に598円/kgで決着した。",
+    handoverNote: "次回も丸紅畜産から値上げ見積が出る可能性あり。598円/kgを起点に、数量継続と相場差を確認して交渉する。",
+    quoteDiffPct: -2.8,
+    achievementPct: 88,
+    savedAt: "2026-07-10T09:00:00Z",
+  },
   "No.499987": {
     caseNo: "No.499987",
     company: "日本ハム商事",

@@ -26,6 +26,10 @@ import type {
 
 // スキーマ拡張のため v2 にバージョンを上げる（旧 v1 の破損/欠損キーを避ける）。
 const KEY = "freeradicals.mockstore.v2";
+const DEMO_DATA_REVISION = "demo-flow-create-500002-from-500001-v4";
+const DEMO_VISIBLE_CASE_NOS = new Set(["No.500001"]);
+const DEMO_HIDDEN_CASE_NOS = new Set(["No.500002"]);
+const DEMO_REMOVED_CASE_NOS = new Set(["No.500002", "No.500003", "No.500010", "No.500011"]);
 
 interface StoreShape {
   cases: CaseSummary[];
@@ -36,6 +40,7 @@ interface StoreShape {
   strategies: Record<string, StrategyDraft>; // ④作戦シートの保存済み下書き
   results: Record<string, ResultRecord>; // ⑤結果記録
   lastStep: Record<string, WorkspaceStep>; // 案件ごとの最後にいたステップ（m-2）
+  dataRevision?: string; // デモ用seed補正の適用済みバージョン
 }
 
 function seed(): StoreShape {
@@ -52,6 +57,7 @@ function seed(): StoreShape {
     strategies: {},
     results: { ...MOCK_RESULTS },
     lastStep: {},
+    dataRevision: DEMO_DATA_REVISION,
   };
 }
 
@@ -59,15 +65,40 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
+function shouldRemoveDemoCaseNo(caseNo: string): boolean {
+  if (caseNo.startsWith("GRAG-")) return true;
+  if (DEMO_REMOVED_CASE_NOS.has(caseNo)) return true;
+  const match = caseNo.match(/^No\.(\d+)(?:-.+)?$/);
+  if (!match) return false;
+  const numeric = Number(match[1]);
+  return numeric > 500001 && numeric < 500100;
+}
+
 function mergeSeedData(s: StoreShape): { store: StoreShape; changed: boolean } {
   let changed = false;
-  const cases = [...(s.cases ?? [])];
+  const shouldRepairDemoFlow = s.dataRevision !== DEMO_DATA_REVISION;
+  let cases = [...(s.cases ?? [])];
   const caseNos = new Set(cases.map((c) => c.caseNo));
 
   for (const mockCase of MOCK_CASES) {
     if (!caseNos.has(mockCase.caseNo)) {
       cases.push(mockCase);
       caseNos.add(mockCase.caseNo);
+      changed = true;
+    }
+  }
+
+  if (shouldRepairDemoFlow) {
+    cases = cases.filter((item) => !shouldRemoveDemoCaseNo(item.caseNo));
+    changed = true;
+
+    for (const mockCase of MOCK_CASES.filter((item) => DEMO_VISIBLE_CASE_NOS.has(item.caseNo))) {
+      const index = cases.findIndex((item) => item.caseNo === mockCase.caseNo);
+      if (index >= 0) {
+        cases[index] = mockCase;
+      } else {
+        cases.unshift(mockCase);
+      }
       changed = true;
     }
   }
@@ -79,12 +110,42 @@ function mergeSeedData(s: StoreShape): { store: StoreShape; changed: boolean } {
       changed = true;
     }
   }
+  if (shouldRepairDemoFlow) {
+    for (const caseNo of [...DEMO_VISIBLE_CASE_NOS, ...DEMO_HIDDEN_CASE_NOS]) {
+      const detail = MOCK_CASE_DETAILS[caseNo];
+      if (detail) {
+        caseExtra[caseNo] = { quotedPrice: detail.quotedPrice, targetPeriod: detail.targetPeriod };
+        changed = true;
+      }
+    }
+    delete caseExtra["No.500003"];
+    for (const caseNo of Object.keys(caseExtra)) {
+      if (shouldRemoveDemoCaseNo(caseNo) && !DEMO_HIDDEN_CASE_NOS.has(caseNo)) {
+        delete caseExtra[caseNo];
+      }
+    }
+  }
 
   const plans = { ...(s.plans ?? {}) };
   for (const [caseNo, plan] of Object.entries(MOCK_PLANS)) {
     if (!plans[caseNo]) {
       plans[caseNo] = plan;
       changed = true;
+    }
+  }
+  if (shouldRepairDemoFlow) {
+    for (const caseNo of [...DEMO_VISIBLE_CASE_NOS, ...DEMO_HIDDEN_CASE_NOS]) {
+      const plan = MOCK_PLANS[caseNo];
+      if (plan) {
+        plans[caseNo] = plan;
+        changed = true;
+      }
+    }
+    delete plans["No.500003"];
+    for (const caseNo of Object.keys(plans)) {
+      if (shouldRemoveDemoCaseNo(caseNo) && !DEMO_HIDDEN_CASE_NOS.has(caseNo)) {
+        delete plans[caseNo];
+      }
     }
   }
 
@@ -97,6 +158,30 @@ function mergeSeedData(s: StoreShape): { store: StoreShape; changed: boolean } {
       results[caseNo] = result;
       changed = true;
     }
+  }
+  const manualRates = { ...(s.manualRates ?? {}) };
+  const lines = { ...(s.lines ?? {}) };
+  const strategies = { ...(s.strategies ?? {}) };
+  const lastStep = { ...(s.lastStep ?? {}) };
+  if (shouldRepairDemoFlow) {
+    results["No.500001"] = MOCK_RESULTS["No.500001"];
+    for (const caseNo of Object.keys(results)) {
+      if (shouldRemoveDemoCaseNo(caseNo)) delete results[caseNo];
+    }
+    for (const caseNo of Object.keys(manualRates)) {
+      if (shouldRemoveDemoCaseNo(caseNo)) delete manualRates[caseNo];
+    }
+    for (const caseNo of Object.keys(lines)) {
+      if (shouldRemoveDemoCaseNo(caseNo)) delete lines[caseNo];
+    }
+    for (const caseNo of Object.keys(strategies)) {
+      if (shouldRemoveDemoCaseNo(caseNo)) delete strategies[caseNo];
+    }
+    lastStep["No.500001"] = "result";
+    for (const caseNo of Object.keys(lastStep)) {
+      if (shouldRemoveDemoCaseNo(caseNo)) delete lastStep[caseNo];
+    }
+    changed = true;
   }
 
   const resultCaseNos = new Set(Object.keys(results));
@@ -122,11 +207,12 @@ function mergeSeedData(s: StoreShape): { store: StoreShape; changed: boolean } {
       cases: casesWithSyncedStatus,
       caseExtra,
       plans,
-      manualRates: s.manualRates ?? {},
-      lines: s.lines ?? {},
-      strategies: s.strategies ?? {},
+      manualRates,
+      lines,
+      strategies,
       results,
-      lastStep: s.lastStep ?? {},
+      lastStep,
+      dataRevision: DEMO_DATA_REVISION,
     },
     changed,
   };
