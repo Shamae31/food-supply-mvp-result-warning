@@ -184,7 +184,7 @@ def save_result(
     result.result_date = date.today()
     result.final_price = body.settled_price
     result.delivery_year_month = _delivery_year_month(body.delivery_timing)
-    result.delivery_term = body.delivery_year_month or body.delivery_timing
+    result.delivery_term = result.delivery_year_month or body.delivery_timing
     result.payment_site = body.payment_terms
     result.vs_quote = body.settled_price - quoted  # 見積比 改善 ¥（負=見積より安い）
     result.achievement = achievement
